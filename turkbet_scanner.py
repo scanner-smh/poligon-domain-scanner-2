@@ -26,7 +26,7 @@ SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
 # ============================================================
 TURKBET_WHITELIST = set([
     "turkbet.com",
-    "727turkbet.com",   # ← RESMİ GÜNCEL ADRES
+    "726turkbet.com", "727turkbet.com",   # ← RESMİ GÜNCEL ADRES
     # Slack tarihçesi: 488turkbet'ten itibaren kullanılmış
     *[f"{num}turkbet.com" for num in range(488, 600)],
     # --- 600-699 arası eski domainlerimiz ---
