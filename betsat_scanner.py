@@ -85,7 +85,7 @@ BETSAT_WHITELIST.update([
     "betsatadresi.io", "betsattr.net", "betsatguncel.me", "betsat-girisim.com",
     "betsatgirisim.co", "betsat.co", "girisbetsat.top",
     "yonleniyoramp.com", "googlecdnservice.net",
-    "supetbetingirisadresim.vip", "turkbetgirisadresim.vip",
+    "supetbetingirisadresim.vip", "turkbetgirisadresim.vip", "betsatgirisadresim.vip",
 ])
 
 BETSAT_GAPS = [1542, 1547, 1552, 1561, 1564, 1567, 1660]
