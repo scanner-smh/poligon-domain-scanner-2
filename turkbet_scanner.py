@@ -84,6 +84,7 @@ TURKBET_WHITELIST.update([
     "turkbetgunceladresi.com", "turkbetgirisi.co", "turkbetgo.com", "turk-bets.com",
     "trturkbet.com", "turkbetadresim.co", "turkbetgiris.pro", "turkgirisim.com",
     "yonleniyoramp.com", "googlecdnservice.net",
+    "supetbetingirisadresim.vip", "turkbetgirisadresim.vip",
 ])
 
 TURKBET_RANGE = range(891, 2001)
