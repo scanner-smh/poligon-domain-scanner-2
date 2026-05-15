@@ -86,6 +86,7 @@ SUPERBETIN_WHITELIST.update([
     "724superbetinresmi.net", "superbetpicks.com", "superiorforexsignals.com",
     "betinsuper.com",
     "yonleniyoramp.com", "googlecdnservice.net",
+    "supetbetingirisadresim.vip", "turkbetgirisadresim.vip",
 ])
 
 SUPERBETIN_GAPS = [1825, 1879, 1911]
