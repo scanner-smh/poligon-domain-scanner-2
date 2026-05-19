@@ -28,7 +28,7 @@ SUPERBETIN_WHITELIST = set([
     "superbetin1817.com","superbetin1818.com","superbetin1819.com","superbetin1820.com",
     "superbetin1821.com","superbetin1822.com","superbetin1823.com","superbetin1824.com",
     "superbetin1826.com","superbetin1827.com","superbetin1828.com","superbetin1829.com",
-    "superbetin1830.com","superbetin1831.com","superbetin1833.com","superbetin1833.com",
+    "superbetin1830.com","superbetin1831.com","superbetin1832.com","superbetin1833.com","superbetin1833.com",
     "superbetin1834.com","superbetin1835.com","superbetin1836.com","superbetin1837.com",
     "superbetin1838.com","superbetin1839.com","superbetin1840.com","superbetin1841.com",
     "superbetin1842.com","superbetin1843.com","superbetin1844.com","superbetin1845.com",
@@ -86,7 +86,7 @@ SUPERBETIN_WHITELIST.update([
     "724superbetinresmi.net", "superbetpicks.com", "superiorforexsignals.com",
     "betinsuper.com",
     "yonleniyoramp.com", "googlecdnservice.net",
-    "supetbetingirisadresim.vip", "turkbetgirisadresim.vip",
+    "supetbetingirisadresim.vip", "turkbetgirisadresim.vip", "betsatgirisadresim.vip",
 ])
 
 SUPERBETIN_GAPS = [1825, 1879, 1911]
@@ -182,9 +182,9 @@ async def main():
     for num in (SUPERBETIN_GAPS + list(SUPERBETIN_RANGE)):
         domains_to_scan.append((f"superbetin{num}.com", "YENI", SUPERBETIN_WHITELIST))
 
-    # KÖR NOKTA FIX: 1415-1699 arası
-    for num in range(1415, 1700):
-        domains_to_scan.append((f"superbetin{num}.com", "GAP-1415-1699", SUPERBETIN_WHITELIST))
+    # KÖR NOKTA FIX: tüm gap aralıkları — whitelist filtreler
+    for num in range(1416, 1975):
+        domains_to_scan.append((f"superbetin{num}.com", "GAP-TARAMA", SUPERBETIN_WHITELIST))
 
     # HIGH-NUM: 18xxx ve üzeri
     for num in SUPERBETIN_HIGH_RANGE:
@@ -269,7 +269,7 @@ async def main():
         msg = f"🚨 *[ALARM] Aktif Sahte Domain!*\n🤖 `{repo}`\n"
         for item in found:
             icon = (
-                "🕳️" if item["type"] == "GAP-1415-1699" else
+                "🕳️" if item["type"] == "GAP-TARAMA" else
                 "🔢" if item["type"] == "HIGH-NUM" else
                 "🔗" if item["type"] == "PREFIX-SHORT" else
                 "5️⃣" if item["type"] == "TERS-5HANE" else
