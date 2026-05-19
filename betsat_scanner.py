@@ -29,9 +29,9 @@ BETSAT_WHITELIST = set([
     "betsat1549.com","betsat1550.com","betsat1551.com","betsat1553.com",
     "betsat1554.com","betsat1555.com","betsat1556.com","betsat1557.com",
     "betsat1558.com","betsat1559.com","betsat1562.com","betsat1563.com",
-    "betsat1565.com","betsat1568.com","betsat1569.com","betsat1570.com",
-    "betsat1571.com","betsat1572.com","betsat1575.com","betsat1574.com",
-    "betsat1575.com","betsat1576.com","betsat1577.com","betsat1578.com",
+    "betsat1565.com","betsat1567.com","betsat1568.com","betsat1569.com","betsat1570.com",
+    "betsat1571.com","betsat1573.com","betsat1575.com",
+    "betsat1577.com","betsat1578.com",
     "betsat1579.com","betsat1580.com","betsat1581.com","betsat1582.com",
     "betsat1583.com","betsat1584.com","betsat1585.com","betsat1586.com",
     "betsat1587.com","betsat1588.com","betsat1589.com","betsat1590.com",
@@ -61,8 +61,8 @@ BETSAT_WHITELIST = set([
     "betsat1684.com","betsat1685.com","betsat1686.com","betsat1687.com",
     "betsat1688.com","betsat1689.com","betsat1690.com","betsat1691.com",
     "betsat1692.com","betsat1693.com","betsat1694.com","betsat1695.com",
-    "betsat1696.com","betsat1697.com","betsat1699.com",
-    "betsat1700.com",
+    "betsat1696.com","betsat1697.com","betsat1698.com","betsat1700.com","betsat1701.com","betsat1702.com",
+    "betsat1704.com","betsat1705.com","betsat1706.com","betsat1707.com","betsat1708.com","betsat1709.com",
 ])
 
 # Slack tarihçesi: betsat1167'den itibaren kullanılmış
@@ -88,8 +88,8 @@ BETSAT_WHITELIST.update([
     "supetbetingirisadresim.vip", "turkbetgirisadresim.vip", "betsatgirisadresim.vip",
 ])
 
-BETSAT_GAPS = [1542, 1547, 1552, 1561, 1564, 1567, 1660]
-BETSAT_RANGE = range(1701, 2501)
+BETSAT_GAPS = [1542, 1547, 1552, 1560, 1561, 1564, 1566, 1572, 1574, 1576, 1592, 1594, 1627, 1649, 1659, 1660, 1671, 1676, 1679, 1689, 1694, 1699, 1703]
+BETSAT_RANGE = range(1710, 2501)
 
 REPORTED_FILE = "betsat_reported.json"
 
