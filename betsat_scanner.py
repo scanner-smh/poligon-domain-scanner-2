@@ -35,7 +35,8 @@ BETSAT_WHITELIST = set([
     "betsat1579.com","betsat1580.com","betsat1581.com","betsat1582.com",
     "betsat1583.com","betsat1584.com","betsat1585.com","betsat1586.com",
     "betsat1587.com","betsat1588.com","betsat1589.com","betsat1590.com",
-    "betsat1591.com","betsat1592.com","betsat1593.com","betsat1594.com",
+    "betsat1591.com","betsat1593.com",
+    # betsat1592, betsat1594 — resmi listede yok, kaldırıldı
     "betsat1595.com","betsat1596.com","betsat1597.com","betsat1598.com",
     "betsat1599.com","betsat1600.com","betsat1601.com","betsat1602.com",
     "betsat1603.com","betsat1604.com","betsat1605.com","betsat1606.com",
@@ -44,23 +45,30 @@ BETSAT_WHITELIST = set([
     "betsat1615.com","betsat1616.com","betsat1617.com","betsat1618.com",
     "betsat1619.com","betsat1620.com","betsat1621.com","betsat1622.com",
     "betsat1623.com","betsat1624.com","betsat1625.com","betsat1626.com",
-    "betsat1627.com","betsat1628.com","betsat1629.com","betsat1630.com",
+    "betsat1628.com","betsat1629.com","betsat1630.com",
+    # betsat1627 — resmi listede yok, kaldırıldı
     "betsat1631.com","betsat1632.com","betsat1633.com","betsat1634.com",
     "betsat1635.com","betsat1636.com","betsat1637.com","betsat1638.com",
     "betsat1639.com","betsat1640.com","betsat1641.com","betsat1642.com",
     "betsat1643.com","betsat1644.com","betsat1645.com","betsat1646.com",
-    "betsat1647.com","betsat1648.com","betsat1649.com","betsat1650.com",
+    "betsat1647.com","betsat1648.com","betsat1650.com",
+    # betsat1649 — resmi listede yok, kaldırıldı
     "betsat1651.com","betsat1652.com","betsat1653.com","betsat1654.com",
     "betsat1655.com","betsat1656.com","betsat1657.com","betsat1658.com",
-    "betsat1659.com","betsat1661.com","betsat1662.com","betsat1663.com",
+    "betsat1661.com","betsat1662.com","betsat1663.com",
+    # betsat1659 — resmi listede yok, kaldırıldı
     "betsat1664.com","betsat1665.com","betsat1666.com","betsat1667.com",
-    "betsat1668.com","betsat1669.com","betsat1670.com","betsat1671.com",
+    "betsat1668.com","betsat1669.com","betsat1670.com","betsat1672.com",
+    # betsat1671 — resmi listede yok, kaldırıldı
     "betsat1672.com","betsat1673.com","betsat1674.com","betsat1675.com",
-    "betsat1676.com","betsat1677.com","betsat1678.com","betsat1679.com",
+    "betsat1677.com","betsat1678.com",
+    # betsat1676 — resmi listede yok, kaldırıldı
+    # betsat1679.com — FRAUD DOMAIN (ARZU OKŞAR mule, Trustname #ABS-37560) — KALDIRILDI
     "betsat1680.com","betsat1681.com","betsat1682.com","betsat1683.com",
     "betsat1684.com","betsat1685.com","betsat1686.com","betsat1687.com",
-    "betsat1688.com","betsat1689.com","betsat1690.com","betsat1691.com",
-    "betsat1692.com","betsat1693.com","betsat1694.com","betsat1695.com",
+    "betsat1688.com","betsat1690.com","betsat1691.com",
+    "betsat1692.com","betsat1693.com","betsat1695.com",
+    # betsat1689, betsat1694 — resmi listede yok, kaldırıldı
     "betsat1696.com","betsat1697.com","betsat1698.com","betsat1700.com","betsat1701.com","betsat1702.com",
     "betsat1704.com","betsat1705.com","betsat1706.com","betsat1707.com","betsat1708.com","betsat1709.com",
 ])
@@ -89,6 +97,7 @@ BETSAT_WHITELIST.update([
 ])
 
 BETSAT_GAPS = [1542, 1547, 1552, 1560, 1561, 1564, 1566, 1572, 1574, 1576, 1592, 1594, 1627, 1649, 1659, 1660, 1671, 1676, 1679, 1689, 1694, 1699, 1703]
+# NOT: betsat1679.com whitelist'ten kaldırıldı (FRAUD: ARZU OKŞAR mule) — gaps'te taranacak
 BETSAT_RANGE = range(1710, 2501)
 
 REPORTED_FILE = "betsat_reported.json"
