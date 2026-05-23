@@ -190,6 +190,11 @@ async def main():
     for num in SUPERBETIN_HIGH_RANGE:
         domains_to_scan.append((f"superbetin{num}.com", "HIGH-NUM", SUPERBETIN_WHITELIST))
 
+    # 1b. 3 HANELİ SAYILAR: superbetin[100-999].com
+    # Örnek sahte domainler: superbetin177.com, superbetin178.com (charles/novalee cluster)
+    for num in range(100, 1000):
+        domains_to_scan.append((f"superbetin{num}.com", "3HANE-TARAMA", SUPERBETIN_WHITELIST))
+
     # 2. TARİH FORMATI
     for num in range(100, 1000):
         domains_to_scan.append((f"superbetin{num:04d}.com", "TARIH-FORMAT", set()))
@@ -269,6 +274,7 @@ async def main():
         msg = f"🚨 *[ALARM] Aktif Sahte Domain!*\n🤖 `{repo}`\n"
         for item in found:
             icon = (
+                "3️⃣" if item["type"] == "3HANE-TARAMA" else
                 "🕳️" if item["type"] == "GAP-TARAMA" else
                 "🔢" if item["type"] == "HIGH-NUM" else
                 "🔗" if item["type"] == "PREFIX-SHORT" else
