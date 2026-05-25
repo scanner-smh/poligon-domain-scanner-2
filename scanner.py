@@ -28,7 +28,7 @@ SUPERBETIN_WHITELIST = set([
     "superbetin1817.com","superbetin1818.com","superbetin1819.com","superbetin1820.com",
     "superbetin1821.com","superbetin1822.com","superbetin1823.com","superbetin1824.com",
     "superbetin1826.com","superbetin1827.com","superbetin1828.com","superbetin1829.com",
-    "superbetin1830.com","superbetin1831.com","superbetin1832.com","superbetin1833.com","superbetin1833.com",
+    "superbetin1830.com","superbetin1831.com","superbetin1832.com","superbetin1833.com",
     "superbetin1834.com","superbetin1835.com","superbetin1836.com","superbetin1837.com",
     "superbetin1838.com","superbetin1839.com","superbetin1840.com","superbetin1841.com",
     "superbetin1842.com","superbetin1843.com","superbetin1844.com","superbetin1845.com",
@@ -68,13 +68,11 @@ SUPERBETIN_WHITELIST = set([
 
 for num in [724, 1560, 2369]:
     SUPERBETIN_WHITELIST.add(f"superbetin{num}.com")
-# Slack tarihçesinden: 1239'dan itibaren kullanılmış (1411-1414 dahil)
 for num in range(1239, 1416):
     SUPERBETIN_WHITELIST.add(f"superbetin{num}.com")
 for num in range(1700, 1813):
     SUPERBETIN_WHITELIST.add(f"superbetin{num}.com")
 
-# SEO / Affiliate domainlerimiz (bizim)
 SUPERBETIN_WHITELIST.update([
     "superbetingiris724.co", "superbetinegiris.com", "superbetinmobil.com",
     "superbetingiris.mobi", "superbetinyeniadres.online", "superbetinresmi.com",
@@ -182,16 +180,13 @@ async def main():
     for num in (SUPERBETIN_GAPS + list(SUPERBETIN_RANGE)):
         domains_to_scan.append((f"superbetin{num}.com", "YENI", SUPERBETIN_WHITELIST))
 
-    # KÖR NOKTA FIX: tüm gap aralıkları — whitelist filtreler
     for num in range(1416, 1975):
         domains_to_scan.append((f"superbetin{num}.com", "GAP-TARAMA", SUPERBETIN_WHITELIST))
 
-    # HIGH-NUM: 18xxx ve üzeri
     for num in SUPERBETIN_HIGH_RANGE:
         domains_to_scan.append((f"superbetin{num}.com", "HIGH-NUM", SUPERBETIN_WHITELIST))
 
     # 1b. 3 HANELİ SAYILAR: superbetin[100-999].com
-    # Örnek sahte domainler: superbetin177.com, superbetin178.com (charles/novalee cluster)
     for num in range(100, 1000):
         domains_to_scan.append((f"superbetin{num}.com", "3HANE-TARAMA", SUPERBETIN_WHITELIST))
 
@@ -213,19 +208,16 @@ async def main():
         domains_to_scan.append((f"superbetn{num}.com", "TYPO-N-EKSIK", set()))
 
     # 5. TERS PATTERN 4 HANELİ
-    print("🔄 4 haneli ters pattern üretiliyor...")
     for num in range(1000, 3001):
         domains_to_scan.append((f"{num}superbetin.com", "TERS-PATTERN", set()))
         domains_to_scan.append((f"{num}superbetim.com", "TERS-PATTERN", set()))
         domains_to_scan.append((f"{num}superbet.com", "TERS-PATTERN", set()))
 
     # 6. TERS PATTERN 5 HANELİ
-    print("5️⃣ 5 haneli ters pattern üretiliyor...")
     for num in range(10000, 25001):
         domains_to_scan.append((f"{num}superbetin.com", "TERS-5HANE", set()))
 
     # 7. IDN SAHTE HARF
-    print("🧬 Sahte harfli (í) varyasyonlar üretiliyor...")
     for num in range(1000, 2501):
         try:
             puny = f"superbetín{num}.com".encode("idna").decode("utf-8")
@@ -233,8 +225,7 @@ async def main():
         except:
             pass
 
-    # 8. TİRELİ ÖNEKLER: m-, tr-, www-, vip-
-    print("🔗 Tireli önek varyasyonları üretiliyor...")
+    # 8. TİRELİ ÖNEKLER
     PREFIXES = ["m-", "tr-", "www-", "vip-"]
     for num in range(100, 1000):
         for prefix in PREFIXES:
@@ -244,19 +235,25 @@ async def main():
             domains_to_scan.append((f"{prefix}superbetin{num}.com", "PREFIX-PATTERN", set()))
 
     # 9. .CO TLD
-    print("🌐 .co TLD varyasyonları taranıyor...")
     for num in range(1800, 3001):
         domains_to_scan.append((f"superbetin{num}.co", "CO-TYPO", set()))
         domains_to_scan.append((f"{num}superbetin.co", "CO-TERS", set()))
 
     # 10. TİRELİ SAYI PATTERN
-    print("➖ Tireli sayısal pattern üretiliyor...")
     for num in range(1800, 3001):
         domain = f"superbetin-{num}.com"
         if domain not in SUPERBETIN_TIRELI_WHITELIST:
             domains_to_scan.append((domain, "TIRELI-SAYI", set()))
 
-    print(f"🚀 Toplam {len(domains_to_scan)} Superbetin domaini ışık hızında taranacak...")
+    # ── 25 MAYIS: SUPERBETSIN TYPO (s harfi ekleniyor) ──────
+    # superbetsin220.com, superbetsin221.com gibi — candy/edward cluster
+    print("🔤 superbetsin typo pattern üretiliyor...")
+    for num in range(100, 1000):    # 3 haneli
+        domains_to_scan.append((f"superbetsin{num}.com", "SUPERBETSIN-3H", set()))
+    for num in range(1000, 3001):   # 4 haneli
+        domains_to_scan.append((f"superbetsin{num}.com", "SUPERBETSIN-4H", set()))
+
+    print(f"🚀 Toplam {len(domains_to_scan)} domain taranacak...")
 
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=500)) as session:
         semaphore = asyncio.Semaphore(500)
@@ -284,6 +281,7 @@ async def main():
                 "🎭" if item["type"] == "IDN-SAHTE" else
                 "🔗" if item["type"] == "PREFIX-PATTERN" else
                 "🔄" if item["type"] == "TERS-PATTERN" else
+                "🔤" if "SUPERBETSIN" in item["type"] else
                 "🔥"
             )
             msg += f"{icon} `{item['domain']}` ({item['status']})\n"
