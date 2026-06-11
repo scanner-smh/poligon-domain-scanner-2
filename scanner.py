@@ -92,7 +92,8 @@ SUPERBETIN_RANGE = range(1975, 3001)
 SUPERBETIN_HIGH_RANGE = range(3001, 20000)
 
 SUPERBETIM_RANGE = range(1000, 2151)
-SUPERBET_TYPO_RANGE = range(1000, 2501)
+# NOT: superbet{num}.com pattern KALDIRILDI — superbet.com.tr ile çakışıyor
+# SUPERBET_TYPO_RANGE = range(1000, 2501)
 
 SUPERBETIN_TIRELI_WHITELIST = {"superbetin-1828.com"}
 
@@ -193,15 +194,15 @@ async def main():
     # 2. TARİH FORMATI
     for num in range(100, 1000):
         domains_to_scan.append((f"superbetin{num:04d}.com", "TARIH-FORMAT", set()))
-        domains_to_scan.append((f"superbet{num:04d}.com", "TARIH-TYPO", set()))
+        # NOT: superbet{num:04d}.com KALDIRILDI — superbet.com.tr ile çakışıyor
 
     # 3. TYPO-M: superbetim[num].com
     for num in SUPERBETIM_RANGE:
         domains_to_scan.append((f"superbetim{num}.com", "TYPO-M", set()))
 
-    # 4. TYPO-IN: superbet[num].com
-    for num in SUPERBET_TYPO_RANGE:
-        domains_to_scan.append((f"superbet{num}.com", "TYPO-IN-EKSIK", set()))
+    # 4. TYPO-IN: superbet[num].com — KALDIRILDI (superbet.com.tr ile çakışıyor)
+    # for num in SUPERBET_TYPO_RANGE:
+    #     domains_to_scan.append((f"superbet{num}.com", "TYPO-IN-EKSIK", set()))
 
     # 4b. TYPO-N: superbetn[num].com
     for num in range(1000, 3001):
@@ -211,7 +212,7 @@ async def main():
     for num in range(1000, 3001):
         domains_to_scan.append((f"{num}superbetin.com", "TERS-PATTERN", set()))
         domains_to_scan.append((f"{num}superbetim.com", "TERS-PATTERN", set()))
-        domains_to_scan.append((f"{num}superbet.com", "TERS-PATTERN", set()))
+        # NOT: {num}superbet.com KALDIRILDI — superbet.com.tr ile çakışıyor
 
     # 6. TERS PATTERN 5 HANELİ
     for num in range(10000, 25001):
@@ -245,12 +246,11 @@ async def main():
         if domain not in SUPERBETIN_TIRELI_WHITELIST:
             domains_to_scan.append((domain, "TIRELI-SAYI", set()))
 
-    # ── 25 MAYIS: SUPERBETSIN TYPO (s harfi ekleniyor) ──────
-    # superbetsin220.com, superbetsin221.com gibi — candy/edward cluster
+    # 11. SUPERBETSIN TYPO (s harfi ekleniyor)
     print("🔤 superbetsin typo pattern üretiliyor...")
-    for num in range(100, 1000):    # 3 haneli
+    for num in range(100, 1000):
         domains_to_scan.append((f"superbetsin{num}.com", "SUPERBETSIN-3H", set()))
-    for num in range(1000, 3001):   # 4 haneli
+    for num in range(1000, 3001):
         domains_to_scan.append((f"superbetsin{num}.com", "SUPERBETSIN-4H", set()))
 
     print(f"🚀 Toplam {len(domains_to_scan)} domain taranacak...")
