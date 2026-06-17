@@ -22,21 +22,19 @@ SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
 # ============================================================
 # TURKBET WHİTELİST — Bizim domainlerimiz
 # NOT: Turkbet'in domain formatı [num]turkbet.com (sayı önde!)
-# Resmi güncel adres: 727turkbet.com
+# Resmi güncel adres: 738turkbet.com
 # ============================================================
 TURKBET_WHITELIST = set([
     "turkbet.com",
-    "726turkbet.com", "727turkbet.com",   # ← RESMİ GÜNCEL ADRES
-    # Slack tarihçesi: 488turkbet'ten itibaren kullanılmış
+    "726turkbet.com", "727turkbet.com",
     *[f"{num}turkbet.com" for num in range(488, 600)],
-    # --- 600-699 arası eski domainlerimiz ---
     *[f"{num}turkbet.com" for num in range(600, 700)],
     "700turkbet.com", "701turkbet.com", "702turkbet.com", "703turkbet.com", "704turkbet.com",
     "705turkbet.com", "706turkbet.com", "707turkbet.com", "708turkbet.com", "709turkbet.com",
     "710turkbet.com", "711turkbet.com", "712turkbet.com", "713turkbet.com", "714turkbet.com",
     "715turkbet.com", "716turkbet.com", "717turkbet.com", "718turkbet.com", "719turkbet.com",
     "720turkbet.com", "721turkbet.com", "722turkbet.com", "723turkbet.com", "724turkbet.com",
-    "725turkbet.com", "727turkbet.com", "727turkbet.com", "728turkbet.com", "729turkbet.com",
+    "725turkbet.com", "727turkbet.com", "728turkbet.com", "729turkbet.com",
     "730turkbet.com", "731turkbet.com", "732turkbet.com", "733turkbet.com", "734turkbet.com",
     "735turkbet.com", "736turkbet.com", "737turkbet.com", "738turkbet.com", "739turkbet.com",
     "740turkbet.com", "741turkbet.com", "742turkbet.com", "743turkbet.com", "744turkbet.com",
@@ -72,7 +70,6 @@ TURKBET_WHITELIST = set([
     "890turkbet.com",
 ])
 
-# SEO / Affiliate domainlerimiz (bizim)
 TURKBET_WHITELIST.update([
     "turkbet.cam", "soloturkbet.com", "asyaturkbet.com", "turkbetturkiye.com",
     "turkbet2026.net", "turkbetcanli.com", "turkbet.es", "turkbet2026.com",
@@ -169,7 +166,7 @@ async def main():
     found = []
     domains_to_scan = []
 
-    # 1. STANDART TURKBET SAYILARI ([num]turkbet.com)
+    # 1. STANDART TURKBET SAYILARI
     for num in list(TURKBET_RANGE):
         domains_to_scan.append((f"{num}turkbet.com", "YENI", TURKBET_WHITELIST))
 
@@ -205,7 +202,7 @@ async def main():
             except:
                 pass
 
-    # 7. TİRELİ ÖNEKLER: m-, tr-, www-, vip-
+    # 7. TİRELİ ÖNEKLER
     print("🔗 Tireli önek varyasyonları üretiliyor...")
     PREFIXES = ["m-", "tr-", "www-", "vip-"]
     for num in range(700, 2001):
@@ -219,14 +216,14 @@ async def main():
         domains_to_scan.append((f"{num}turkbet.co", "CO-TYPO", set()))
         domains_to_scan.append((f"turkbet{num}.co", "CO-TERS", set()))
 
-    # 9. DİĞER ALT TLD'LER: .vip, .icu, .live, .net, .org
+    # 9. DİĞER ALT TLD'LER
     print("🌐 Turkbet alt TLD varyasyonları taranıyor...")
     for num in range(700, 2001):
         for tld in ["vip", "icu", "live", "net", "org"]:
             domains_to_scan.append((f"{num}turkbet.{tld}", f"TURKBET-{tld.upper()}", set()))
             domains_to_scan.append((f"turkbet{num}.{tld}", f"TURKBET-{tld.upper()}-TERS", set()))
 
-    print(f"🚀 Toplam {len(domains_to_scan)} Turkbet domain ışık hızında taranacak...")
+    print(f"🚀 Toplam {len(domains_to_scan)} Turkbet domain taranacak...")
 
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=500)) as session:
         semaphore = asyncio.Semaphore(500)
@@ -239,8 +236,10 @@ async def main():
 
     save_reported(reported)
 
+    now = datetime.now(TZ_SOFIA).strftime("%d.%m.%Y %H:%M")
+    repo = os.environ.get("GITHUB_REPOSITORY", "smhozt/poligon-domain-scanner")
+
     if found:
-        repo = os.environ.get("GITHUB_REPOSITORY", "smhozt/poligon-domain-scanner")
         msg = f"🚨 *[TURKBET ALARM] Aktif Sahte Domain!*\n🤖 `{repo}`\n"
         for item in found:
             icon = (
@@ -255,6 +254,13 @@ async def main():
         save_to_google_sheets(found)
         await send_telegram(msg)
     else:
+        msg = (
+            f"✅ *[TURKBET TARAMA] Temiz* — {now}\n"
+            f"🤖 `{repo}`\n"
+            f"Taranan: `{len(domains_to_scan):,}` domain\n"
+            f"Sahte domain bulunamadı."
+        )
+        await send_telegram(msg)
         print("Temiz.")
 
 if __name__ == "__main__":
