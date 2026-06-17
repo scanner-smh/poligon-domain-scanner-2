@@ -36,7 +36,6 @@ BETSAT_WHITELIST = set([
     "betsat1583.com","betsat1584.com","betsat1585.com","betsat1586.com",
     "betsat1587.com","betsat1588.com","betsat1589.com","betsat1590.com",
     "betsat1591.com","betsat1593.com",
-    # betsat1592, betsat1594 — resmi listede yok, kaldırıldı
     "betsat1595.com","betsat1596.com","betsat1597.com","betsat1598.com",
     "betsat1599.com","betsat1600.com","betsat1601.com","betsat1602.com",
     "betsat1603.com","betsat1604.com","betsat1605.com","betsat1606.com",
@@ -46,38 +45,29 @@ BETSAT_WHITELIST = set([
     "betsat1619.com","betsat1620.com","betsat1621.com","betsat1622.com",
     "betsat1623.com","betsat1624.com","betsat1625.com","betsat1626.com",
     "betsat1628.com","betsat1629.com","betsat1630.com",
-    # betsat1627 — resmi listede yok, kaldırıldı
     "betsat1631.com","betsat1632.com","betsat1633.com","betsat1634.com",
     "betsat1635.com","betsat1636.com","betsat1637.com","betsat1638.com",
     "betsat1639.com","betsat1640.com","betsat1641.com","betsat1642.com",
     "betsat1643.com","betsat1644.com","betsat1645.com","betsat1646.com",
     "betsat1647.com","betsat1648.com","betsat1650.com",
-    # betsat1649 — resmi listede yok, kaldırıldı
     "betsat1651.com","betsat1652.com","betsat1653.com","betsat1654.com",
     "betsat1655.com","betsat1656.com","betsat1657.com","betsat1658.com",
     "betsat1661.com","betsat1662.com","betsat1663.com",
-    # betsat1659 — resmi listede yok, kaldırıldı
     "betsat1664.com","betsat1665.com","betsat1666.com","betsat1667.com",
     "betsat1668.com","betsat1669.com","betsat1670.com","betsat1672.com",
-    # betsat1671 — resmi listede yok, kaldırıldı
     "betsat1672.com","betsat1673.com","betsat1674.com","betsat1675.com",
     "betsat1677.com","betsat1678.com",
-    # betsat1676 — resmi listede yok, kaldırıldı
-    # betsat1679.com — FRAUD DOMAIN (ARZU OKŞAR mule, Trustname #ABS-37560) — KALDIRILDI
     "betsat1680.com","betsat1681.com","betsat1682.com","betsat1683.com",
     "betsat1684.com","betsat1685.com","betsat1686.com","betsat1687.com",
     "betsat1688.com","betsat1690.com","betsat1691.com",
     "betsat1692.com","betsat1693.com","betsat1695.com",
-    # betsat1689, betsat1694 — resmi listede yok, kaldırıldı
     "betsat1696.com","betsat1697.com","betsat1698.com","betsat1700.com","betsat1701.com","betsat1702.com",
     "betsat1704.com","betsat1705.com","betsat1706.com","betsat1707.com","betsat1708.com","betsat1709.com",
 ])
 
-# Slack tarihçesi: betsat1167'den itibaren kullanılmış
 for num in range(1167, 1539):
     BETSAT_WHITELIST.add(f"betsat{num}.com")
 
-# SEO / Affiliate domainlerimiz (bizim)
 BETSAT_WHITELIST.update([
     "betsatgiris1.com", "betsatturkiye.com", "betsatresmigiris.com",
     "betsatguncelgiris2026.com", "betsatyenigiris2026.com", "betsat-bahis.site",
@@ -86,7 +76,7 @@ BETSAT_WHITELIST.update([
     "betsatan.com", "betsatcasino.net", "betsatyeniadresi.com",
     "betsatgirisadresi.xyz", "betsat-giris.org", "betsatonlinecasino.com",
     "betsat.mobi", "muhtesembetsat.com", "betsatgiris.online", "mobilbetsat.com",
-    "betsatofficial.com", "betsat.tv", "betsatguncelgirisi.com", "betsat-giris.com",
+    "betsatofficial.com", "betsat.tv", "betsatgunceladresi.com", "betsat-giris.com",
     "betsathizligiris.com", "betsatgunceladresi.com", "betsatgirisadresim.com",
     "betsatmobilgiris.com", "betsatamp.top", "betsatonline.com",
     "betsatonlinegiris.com", "betsat.xyz", "betsat.pro", "betsatgiris.casino",
@@ -97,8 +87,7 @@ BETSAT_WHITELIST.update([
 ])
 
 BETSAT_GAPS = [1542, 1547, 1552, 1560, 1561, 1564, 1566, 1572, 1574, 1576, 1592, 1594, 1627, 1649, 1659, 1660, 1671, 1676, 1679, 1689, 1694, 1699, 1703]
-# NOT: betsat1679.com whitelist'ten kaldırıldı (FRAUD: ARZU OKŞAR mule) — gaps'te taranacak
-BETSAT_RANGE = range(1710, 4501)
+BETSAT_RANGE = range(1710, 2501)
 
 REPORTED_FILE = "betsat_reported.json"
 
@@ -174,26 +163,21 @@ async def main():
     found = []
     domains_to_scan = []
 
-    # 1. STANDART BETSAT SAYILARI (Gaps ve Gelecek Range)
     for num in (BETSAT_GAPS + list(BETSAT_RANGE)):
         domains_to_scan.append((f"betsat{num}.com", "YENI", BETSAT_WHITELIST))
 
-    # TARIH FORMATI
     for num in range(100, 1000):
         domains_to_scan.append((f"betsat{num:04d}.com", "TARIH-FORMAT", set()))
 
-    # 3. TYPO VARYASYONLARI
     for num in range(1000, 2501):
         domains_to_scan.append((f"bestsat{num}.com", "TYPO-S", set()))
         domains_to_scan.append((f"betsatm{num}.com", "TYPO-M", set()))
         domains_to_scan.append((f"besat{num}.com", "TYPO-EKSİK-T", set()))
         domains_to_scan.append((f"{num}bestsat.com", "TYPO-S-TERS", set()))
 
-    # 4. TERS PATTERN ([num]betsat.com)
     for num in range(1000, 2501):
         domains_to_scan.append((f"{num}betsat.com", "TERS-PATTERN", set()))
 
-    # 5. IDN SAHTE HARF
     print("🧬 Sahte harfli (IDN) varyasyonlar üretiliyor...")
     for num in range(1000, 2501):
         for variant in [f"bètsat{num}.com", f"betsát{num}.com"]:
@@ -202,20 +186,18 @@ async def main():
                 domains_to_scan.append((puny, "IDN-SAHTE", set()))
             except: pass
 
-    # 6. TİRELİ ÖNEKLER
     print("🔗 Tireli önek (m-, tr- vb.) varyasyonları üretiliyor...")
     PREFIXES = ["m-", "tr-", "www-", "vip-"]
     for num in range(1000, 2501):
         for prefix in PREFIXES:
             domains_to_scan.append((f"{prefix}betsat{num}.com", "PREFIX-PATTERN", set()))
 
-    # 7. BETSAT .CO UZANTILARI
     print("🌐 Betsat .co TLD varyasyonları taranıyor...")
     for num in range(1000, 2501):
         domains_to_scan.append((f"betsat{num}.co", "CO-TYPO", set()))
         domains_to_scan.append((f"{num}betsat.co", "CO-TERS", set()))
 
-    print(f"🚀 Toplam {len(domains_to_scan)} Betsat potansiyel domain ışık hızında taranacak...")
+    print(f"🚀 Toplam {len(domains_to_scan)} Betsat potansiyel domain taranacak...")
 
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=500)) as session:
         semaphore = asyncio.Semaphore(500)
@@ -226,8 +208,10 @@ async def main():
 
     save_reported(reported)
 
+    now = datetime.now(TZ_SOFIA).strftime("%d.%m.%Y %H:%M")
+    repo = os.environ.get("GITHUB_REPOSITORY", "smhozt/poligon-domain-scanner")
+
     if found:
-        repo = os.environ.get("GITHUB_REPOSITORY", "smhozt/poligon-domain-scanner")
         msg = f"🚨 *[BETSAT ALARM] Aktif Sahte Domain!*\n🤖 `{repo}`\n"
         for item in found:
             icon = (
@@ -241,6 +225,14 @@ async def main():
         save_to_google_sheets(found)
         await send_telegram(msg)
     else:
+        now = datetime.now(TZ_SOFIA).strftime("%d.%m.%Y %H:%M")
+        msg = (
+            f"✅ *[BETSAT TARAMA] Temiz* — {now}\n"
+            f"🤖 `{repo}`\n"
+            f"Taranan: `{len(domains_to_scan):,}` domain\n"
+            f"Sahte domain bulunamadı."
+        )
+        await send_telegram(msg)
         print("Temiz.")
 
 if __name__ == "__main__":
