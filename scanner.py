@@ -92,8 +92,6 @@ SUPERBETIN_RANGE = range(1975, 3001)
 SUPERBETIN_HIGH_RANGE = range(3001, 20000)
 
 SUPERBETIM_RANGE = range(1000, 2151)
-# NOT: superbet{num}.com pattern KALDIRILDI — superbet.com.tr ile çakışıyor
-# SUPERBET_TYPO_RANGE = range(1000, 2501)
 
 SUPERBETIN_TIRELI_WHITELIST = {"superbetin-1828.com"}
 
@@ -177,7 +175,7 @@ async def main():
     found = []
     domains_to_scan = []
 
-    # 1. SAYISAL DOMAİNLER: superbetin[num].com
+    # 1. SAYISAL DOMAİNLER
     for num in (SUPERBETIN_GAPS + list(SUPERBETIN_RANGE)):
         domains_to_scan.append((f"superbetin{num}.com", "YENI", SUPERBETIN_WHITELIST))
 
@@ -187,24 +185,19 @@ async def main():
     for num in SUPERBETIN_HIGH_RANGE:
         domains_to_scan.append((f"superbetin{num}.com", "HIGH-NUM", SUPERBETIN_WHITELIST))
 
-    # 1b. 3 HANELİ SAYILAR: superbetin[100-999].com
+    # 1b. 3 HANELİ SAYILAR
     for num in range(100, 1000):
         domains_to_scan.append((f"superbetin{num}.com", "3HANE-TARAMA", SUPERBETIN_WHITELIST))
 
     # 2. TARİH FORMATI
     for num in range(100, 1000):
         domains_to_scan.append((f"superbetin{num:04d}.com", "TARIH-FORMAT", set()))
-        # NOT: superbet{num:04d}.com KALDIRILDI — superbet.com.tr ile çakışıyor
 
-    # 3. TYPO-M: superbetim[num].com
+    # 3. TYPO-M
     for num in SUPERBETIM_RANGE:
         domains_to_scan.append((f"superbetim{num}.com", "TYPO-M", set()))
 
-    # 4. TYPO-IN: superbet[num].com — KALDIRILDI (superbet.com.tr ile çakışıyor)
-    # for num in SUPERBET_TYPO_RANGE:
-    #     domains_to_scan.append((f"superbet{num}.com", "TYPO-IN-EKSIK", set()))
-
-    # 4b. TYPO-N: superbetn[num].com
+    # 4b. TYPO-N
     for num in range(1000, 3001):
         domains_to_scan.append((f"superbetn{num}.com", "TYPO-N-EKSIK", set()))
 
@@ -212,7 +205,6 @@ async def main():
     for num in range(1000, 3001):
         domains_to_scan.append((f"{num}superbetin.com", "TERS-PATTERN", set()))
         domains_to_scan.append((f"{num}superbetim.com", "TERS-PATTERN", set()))
-        # NOT: {num}superbet.com KALDIRILDI — superbet.com.tr ile çakışıyor
 
     # 6. TERS PATTERN 5 HANELİ
     for num in range(10000, 25001):
@@ -246,7 +238,7 @@ async def main():
         if domain not in SUPERBETIN_TIRELI_WHITELIST:
             domains_to_scan.append((domain, "TIRELI-SAYI", set()))
 
-    # 11. SUPERBETSIN TYPO (s harfi ekleniyor)
+    # 11. SUPERBETSIN TYPO
     print("🔤 superbetsin typo pattern üretiliyor...")
     for num in range(100, 1000):
         domains_to_scan.append((f"superbetsin{num}.com", "SUPERBETSIN-3H", set()))
@@ -266,8 +258,10 @@ async def main():
 
     save_reported(reported)
 
+    now = datetime.now(TZ_SOFIA).strftime("%d.%m.%Y %H:%M")
+    repo = os.environ.get("GITHUB_REPOSITORY", "smhozt/poligon-domain-scanner")
+
     if found:
-        repo = os.environ.get("GITHUB_REPOSITORY", "smhozt/poligon-domain-scanner")
         msg = f"🚨 *[ALARM] Aktif Sahte Domain!*\n🤖 `{repo}`\n"
         for item in found:
             icon = (
@@ -288,6 +282,13 @@ async def main():
         save_to_google_sheets(found)
         await send_telegram(msg)
     else:
+        msg = (
+            f"✅ *[SUPERBETIN TARAMA] Temiz* — {now}\n"
+            f"🤖 `{repo}`\n"
+            f"Taranan: `{len(domains_to_scan):,}` domain\n"
+            f"Sahte domain bulunamadı."
+        )
+        await send_telegram(msg)
         print("Temiz.")
 
 if __name__ == "__main__":
