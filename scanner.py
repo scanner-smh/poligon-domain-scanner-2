@@ -63,7 +63,17 @@ SUPERBETIN_WHITELIST = set([
     "superbetin1960.com","superbetin1961.com","superbetin1962.com","superbetin1963.com",
     "superbetin1964.com","superbetin1965.com","superbetin1966.com","superbetin1967.com",
     "superbetin1968.com","superbetin1969.com","superbetin1970.com","superbetin1971.com",
-    "superbetin1972.com","superbetin1973.com","superbetin1974.com"
+    "superbetin1972.com","superbetin1973.com","superbetin1974.com","superbetin2052.com",
+    "superbetin2053.com","superbetin2054.com","superbetin2055.com","superbetin2056.com",
+    "superbetin2057.com","superbetin2060.com","superbetin2061.com","superbetin2062.com",
+    "superbetin2063.com","superbetin2064.com","superbetin2065.com","superbetin2066.com",
+    "superbetin2067.com","superbetin2068.com","superbetin2069.com","superbetin2070.com",
+    "superbetin2071.com","superbetin2072.com","superbetin2073.com","superbetin2074.com",
+    "superbetin2075.com","superbetin2076.com","superbetin2077.com","superbetin2082.com",
+    "superbetin2083.com","superbetin2084.com","superbetin2085.com","superbetin2087.com",
+    "superbetin2088.com","superbetin2090.com","superbetin2091.com","superbetin2092.com",
+    "superbetin2093.com","superbetin2094.com","superbetin2096.com","superbetin2097.com",
+    "superbetin2098.com","superbetin2099.com","superbetin2100.com"
 ])
 
 for num in [724, 1560, 2369]:
