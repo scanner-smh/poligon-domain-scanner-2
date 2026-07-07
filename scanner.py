@@ -5,17 +5,14 @@ import concurrent.futures
 import os
 import json
 from datetime import datetime, timezone, timedelta
-
 import gspread
 from google.oauth2.service_account import Credentials
 
 TZ_SOFIA = timezone(timedelta(hours=3))
-
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=500)
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_IDS = os.environ["TELEGRAM_CHAT_IDS"].split(",")
-
 GCP_CREDENTIALS = os.environ.get("GCP_CREDENTIALS")
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
 
@@ -75,13 +72,31 @@ SUPERBETIN_WHITELIST = set([
     "superbetin2093.com","superbetin2094.com","superbetin2096.com","superbetin2097.com",
     "superbetin2098.com","superbetin2099.com","superbetin2100.com"
 ])
-
 for num in [724, 1560, 2369]:
     SUPERBETIN_WHITELIST.add(f"superbetin{num}.com")
 for num in range(1239, 1416):
     SUPERBETIN_WHITELIST.add(f"superbetin{num}.com")
 for num in range(1700, 1813):
     SUPERBETIN_WHITELIST.add(f"superbetin{num}.com")
+
+# ── 07 Temmuz 2026 eklemeleri — yeni satın alınan 38 domain.
+# DİKKAT: Bunlar 2101-2150 aralığında ama bilinçli olarak RANGE
+# olarak DEĞİL, tek tek eklendi — çünkü aynı aralıkta zaten bilinen
+# FRAUD domainler var (superbetin2105, 2110, 2112, 2113, 2116, 2122,
+# 2123, 2125, 2134, 2135, 2137, 2149 gibi — bunlar sahtekarlara ait,
+# whitelist'e eklenmedi, taranmaya devam edecek). ──────────────────
+SUPERBETIN_WHITELIST.update([
+    "superbetin2101.com", "superbetin2102.com", "superbetin2103.com", "superbetin2104.com",
+    "superbetin2106.com", "superbetin2107.com", "superbetin2108.com", "superbetin2109.com",
+    "superbetin2111.com", "superbetin2114.com", "superbetin2115.com", "superbetin2117.com",
+    "superbetin2118.com", "superbetin2119.com", "superbetin2120.com", "superbetin2121.com",
+    "superbetin2124.com", "superbetin2126.com", "superbetin2127.com", "superbetin2128.com",
+    "superbetin2129.com", "superbetin2130.com", "superbetin2131.com", "superbetin2132.com",
+    "superbetin2133.com", "superbetin2136.com", "superbetin2138.com", "superbetin2139.com",
+    "superbetin2140.com", "superbetin2141.com", "superbetin2142.com", "superbetin2143.com",
+    "superbetin2144.com", "superbetin2145.com", "superbetin2146.com", "superbetin2147.com",
+    "superbetin2148.com", "superbetin2150.com",
+])
 
 SUPERBETIN_WHITELIST.update([
     "superbetingiris724.co", "superbetinegiris.com", "superbetinmobil.com",
@@ -96,16 +111,14 @@ SUPERBETIN_WHITELIST.update([
     "yonleniyoramp.com", "googlecdnservice.net",
     "supetbetingirisadresim.vip", "turkbetgirisadresim.vip", "betsatgirisadresim.vip",
 ])
-
 SUPERBETIN_GAPS = [1825, 1879, 1911]
 SUPERBETIN_RANGE = range(1975, 3001)
 SUPERBETIN_HIGH_RANGE = range(3001, 20000)
-
 SUPERBETIM_RANGE = range(1000, 3151)
-
 SUPERBETIN_TIRELI_WHITELIST = {"superbetin-1828.com"}
 
 REPORTED_FILE = "reported.json"
+
 
 def load_reported():
     try:
@@ -114,9 +127,11 @@ def load_reported():
     except:
         return set()
 
+
 def save_reported(reported):
     with open(REPORTED_FILE, "w") as f:
         json.dump(list(reported), f)
+
 
 def save_to_google_sheets(found_items):
     if not GCP_CREDENTIALS or not SPREADSHEET_ID:
@@ -138,6 +153,7 @@ def save_to_google_sheets(found_items):
     except Exception as e:
         print(f"Sheets hatasi: {e}")
 
+
 async def check_dns_native(domain):
     loop = asyncio.get_running_loop()
     try:
@@ -145,6 +161,7 @@ async def check_dns_native(domain):
         return True, ip
     except:
         return False, ""
+
 
 async def scan_domain(session, domain, dtype, whitelist, reported, found):
     if domain in whitelist or domain in reported:
@@ -170,6 +187,7 @@ async def scan_domain(session, domain, dtype, whitelist, reported, found):
     reported.add(domain)
     print(f"[FOUND] {domain} ({ip})")
 
+
 async def send_telegram(message):
     async with aiohttp.ClientSession() as session:
         for chat_id in TELEGRAM_CHAT_IDS:
@@ -180,6 +198,7 @@ async def send_telegram(message):
                 "parse_mode": "Markdown"
             })
 
+
 async def main():
     reported = load_reported()
     found = []
@@ -188,10 +207,8 @@ async def main():
     # 1. SAYISAL DOMAİNLER
     for num in (SUPERBETIN_GAPS + list(SUPERBETIN_RANGE)):
         domains_to_scan.append((f"superbetin{num}.com", "YENI", SUPERBETIN_WHITELIST))
-
     for num in range(1416, 1975):
         domains_to_scan.append((f"superbetin{num}.com", "GAP-TARAMA", SUPERBETIN_WHITELIST))
-
     for num in SUPERBETIN_HIGH_RANGE:
         domains_to_scan.append((f"superbetin{num}.com", "HIGH-NUM", SUPERBETIN_WHITELIST))
 
@@ -270,7 +287,6 @@ async def main():
 
     now = datetime.now(TZ_SOFIA).strftime("%d.%m.%Y %H:%M")
     repo = os.environ.get("GITHUB_REPOSITORY", "smhozt/poligon-domain-scanner")
-
     if found:
         msg = f"🚨 *[ALARM] Aktif Sahte Domain!*\n🤖 `{repo}`\n"
         for item in found:
@@ -300,6 +316,7 @@ async def main():
         )
         await send_telegram(msg)
         print("Temiz.")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
