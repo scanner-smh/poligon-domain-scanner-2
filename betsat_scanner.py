@@ -5,7 +5,6 @@ import json
 import socket
 import concurrent.futures
 from datetime import datetime, timezone, timedelta
-
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -13,7 +12,6 @@ TZ_SOFIA = timezone(timedelta(hours=3))
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_IDS = os.environ["TELEGRAM_CHAT_IDS"].split(",")
-
 GCP_CREDENTIALS = os.environ.get("GCP_CREDENTIALS")
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
 
@@ -64,10 +62,8 @@ BETSAT_WHITELIST = set([
     "betsat1696.com","betsat1697.com","betsat1698.com","betsat1700.com","betsat1701.com","betsat1702.com",
     "betsat1704.com","betsat1705.com","betsat1706.com","betsat1707.com","betsat1708.com","betsat1709.com",
 ])
-
 for num in range(1167, 1539):
     BETSAT_WHITELIST.add(f"betsat{num}.com")
-
 BETSAT_WHITELIST.update([
     "betsatgiris1.com", "betsatturkiye.com", "betsatresmigiris.com",
     "betsatguncelgiris2026.com", "betsatyenigiris2026.com", "betsat-bahis.site",
@@ -85,11 +81,11 @@ BETSAT_WHITELIST.update([
     "yonleniyoramp.com", "googlecdnservice.net",
     "supetbetingirisadresim.vip", "turkbetgirisadresim.vip", "betsatgirisadresim.vip",
 ])
-
 BETSAT_GAPS = [1542, 1547, 1552, 1560, 1561, 1564, 1566, 1572, 1574, 1576, 1592, 1594, 1627, 1649, 1659, 1660, 1671, 1676, 1679, 1689, 1694, 1699, 1703]
 BETSAT_RANGE = range(1710, 5501)
 
 REPORTED_FILE = "betsat_reported.json"
+
 
 def load_reported():
     try:
@@ -98,9 +94,11 @@ def load_reported():
     except:
         return set()
 
+
 def save_reported(reported):
     with open(REPORTED_FILE, "w") as f:
         json.dump(list(reported), f)
+
 
 def save_to_google_sheets(found_items):
     if not GCP_CREDENTIALS or not SPREADSHEET_ID:
@@ -122,6 +120,7 @@ def save_to_google_sheets(found_items):
     except Exception as e:
         print(f"Sheets hatasi: {e}")
 
+
 async def check_dns_native(domain):
     loop = asyncio.get_running_loop()
     try:
@@ -130,8 +129,10 @@ async def check_dns_native(domain):
     except:
         return False, ""
 
+
 async def scan_domain(session, domain, dtype, whitelist, reported, found):
-    if domain in whitelist or domain in reported: return
+    if domain in whitelist or domain in reported:
+        return
     dns_ok, ip = await check_dns_native(domain)
     if not dns_ok:
         return
@@ -141,7 +142,8 @@ async def scan_domain(session, domain, dtype, whitelist, reported, found):
             if resp.status in [200, 301, 302, 403]:
                 http_ok = True
                 code = resp.status
-    except: pass
+    except:
+        pass
     found.append({
         "domain": domain,
         "type": dtype,
@@ -152,11 +154,29 @@ async def scan_domain(session, domain, dtype, whitelist, reported, found):
     reported.add(domain)
     print(f"[FOUND] {domain} ({ip})")
 
+
 async def send_telegram(message):
     async with aiohttp.ClientSession() as session:
         for chat_id in TELEGRAM_CHAT_IDS:
             url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
             await session.post(url, json={"chat_id": chat_id.strip(), "text": message, "parse_mode": "Markdown"})
+
+
+# ============================================================
+# ÇİFT HARF TYPOSQUAT ÜRETİCİ — "betsatt" (çift t) gibi domainleri
+# yakalamak için. Kelimenin her harfini sırayla bir kez ikiye katlar:
+# bbetsat, beetsat, bettsat, betssat, betsaat, betsatt — hepsini üretir.
+# Gerçek fraud'da gördüğümüz "betsatt1599.com" (çift t) bu setin
+# içinde otomatik olarak çıkıyor (i=5 konumunda).
+# ============================================================
+def generate_double_letter_variants(word):
+    variants = []
+    for i in range(len(word)):
+        doubled = word[:i + 1] + word[i] + word[i + 1:]
+        if doubled != word:
+            variants.append(doubled)
+    return list(dict.fromkeys(variants))  # sırayı koru, tekrarları at
+
 
 async def main():
     reported = load_reported()
@@ -184,7 +204,8 @@ async def main():
             try:
                 puny = variant.encode("idna").decode("utf-8")
                 domains_to_scan.append((puny, "IDN-SAHTE", set()))
-            except: pass
+            except:
+                pass
 
     print("🔗 Tireli önek (m-, tr- vb.) varyasyonları üretiliyor...")
     PREFIXES = ["m-", "tr-", "www-", "vip-"]
@@ -197,20 +218,31 @@ async def main():
         domains_to_scan.append((f"betsat{num}.co", "CO-TYPO", set()))
         domains_to_scan.append((f"{num}betsat.co", "CO-TERS", set()))
 
+    # ── YENİ: Çift harf typosquat (betsatt gibi) ──────────────
+    print("🔤 Çift harf typosquat (betsatt gibi) varyasyonları üretiliyor...")
+    double_letter_words = generate_double_letter_variants("betsat")
+    print(f"    Üretilen kalıplar: {', '.join(double_letter_words)}")
+    for word in double_letter_words:
+        for num in range(1000, 2501):
+            domains_to_scan.append((f"{word}{num}.com", "TYPO-CIFT-HARF", set()))
+        # bare (numarasız) hali de kontrol edilsin — betsatt.com gibi
+        domains_to_scan.append((f"{word}.com", "TYPO-CIFT-HARF-BARE", set()))
+
     print(f"🚀 Toplam {len(domains_to_scan)} Betsat potansiyel domain taranacak...")
 
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=500)) as session:
         semaphore = asyncio.Semaphore(500)
+
         async def bounded_scan(d, t, w):
             async with semaphore:
                 await scan_domain(session, d, t, w, reported, found)
+
         await asyncio.gather(*[bounded_scan(d, t, w) for d, t, w in domains_to_scan])
 
     save_reported(reported)
 
     now = datetime.now(TZ_SOFIA).strftime("%d.%m.%Y %H:%M")
     repo = os.environ.get("GITHUB_REPOSITORY", "smhozt/poligon-domain-scanner")
-
     if found:
         msg = f"🚨 *[BETSAT ALARM] Aktif Sahte Domain!*\n🤖 `{repo}`\n"
         for item in found:
@@ -219,13 +251,13 @@ async def main():
                 "🎭" if item["type"] == "IDN-SAHTE" else
                 "🔗" if item["type"] == "PREFIX-PATTERN" else
                 "🔄" if item["type"] == "TERS-PATTERN" else
+                "✌️" if "CIFT-HARF" in item["type"] else
                 "🔥"
             )
             msg += f"{icon} `{item['domain']}` ({item['status']})\n"
         save_to_google_sheets(found)
         await send_telegram(msg)
     else:
-        now = datetime.now(TZ_SOFIA).strftime("%d.%m.%Y %H:%M")
         msg = (
             f"✅ *[BETSAT TARAMA] Temiz* — {now}\n"
             f"🤖 `{repo}`\n"
@@ -234,6 +266,7 @@ async def main():
         )
         await send_telegram(msg)
         print("Temiz.")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
