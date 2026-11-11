@@ -1,0 +1,52 @@
+name: TR Mobil Kontrol (SOAX)
+
+# Sadece mobil (Turkcell/Vodafone) olcum. Globalping kullanmaz, ana kontrolun limitini
+# ve durumunu etkilemez. Mesajlar "SOAX'a gore ... bilgi" olarak gelir.
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'   # 15 dakikada bir (ana kontrolle ayni dakikalara denk gelmesin)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobil-kontrol
+  cancel-in-progress: false
+
+jobs:
+  mobil:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Ana kontrolun durumundan ayri tutulur (karismasin diye).
+      - name: Onceki mobil durumu getir
+        uses: actions/cache/restore@v4
+        with:
+          path: domain_state_mobil.json
+          key: mobil-state-${{ github.run_id }}
+          restore-keys: |
+            mobil-state-
+
+      - name: Mobil kontrol
+        env:
+          DOMAIN_LIST: ${{ vars.DOMAIN_LIST }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
+          MOBILE_PROXY_PASSWORD: ${{ secrets.MOBILE_PROXY_PASSWORD }}
+          MOBILE_ISPS: ${{ vars.MOBILE_ISPS }}
+        run: python domain_check.py --sadece-mobil --notify --state domain_state_mobil.json --out mobil_status.json
+
+      - name: Durumu kaydet
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: domain_state_mobil.json
+          key: mobil-state-${{ github.run_id }}
