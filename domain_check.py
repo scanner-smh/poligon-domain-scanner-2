@@ -437,9 +437,39 @@ def mobile_exit_check(isp, asn, label=""):
     return res
 
 
+_MOBILE_BUDGET_SEC = 150   # tüm mobil ölçümler için toplam süre sınırı (iş uzamasın)
+_MOBILE_START = [None]
+
+
+def safe_mobile_probes(domain):
+    """Mobil ölçüm EK bilgidir. Herhangi bir hata ana kontrolü asla bozmaz."""
+    try:
+        return mobile_probes(domain)
+    except Exception as e:      # proxy kapalı, beklenmedik hata vb.
+        warn("Mobil ölçüm atlandı (%s)" % type(e).__name__)
+        return []
+
+
+def mobile_status(probes):
+    """Mobil probe'lardan tek durum: MOBIL_SUPHE / MOBIL_ACIK / None (ölçülemedi)."""
+    if any(p["verdict"] in ("ENGELLI", "ULASILAMIYOR") for p in probes):
+        return "MOBIL_SUPHE"
+    if any(p["verdict"] == "ACIK" for p in probes):
+        return "MOBIL_ACIK"
+    return None
+
+
 def mobile_probes(domain):
     probes = []
+    if _MOBILE_START[0] is None:
+        _MOBILE_START[0] = time.time()
     for label, asn, isp in mobile_targets():
+        if time.time() - _MOBILE_START[0] > _MOBILE_BUDGET_SEC:
+            probes.append({"asn": asn, "network": "%s (mobil)" % label, "city": "mobil",
+                           "dns": {"state": "OK", "detail": "", "resolver": None, "ips": [], "public_dns": True},
+                           "http": {"state": "PROXY_HATA", "code": None, "detail": "süre bütçesi doldu"},
+                           "verdict": "OLCULEMEDI", "exit": ""})
+            continue
         ok, exit_info = mobile_exit_check(isp, asn, label)
         if not ok:   # proxy yanlış operatörden çıkıyor: ölçüm anlamsız
             http = {"state": "PROXY_HATA", "code": None, "detail": "yanlış çıkış (%s)" % exit_info}
@@ -480,9 +510,10 @@ def check_domain(brand, domain, locations):
             "http": http,
             "verdict": probe_verdict(dns, http),
         })
-    probes.extend(mobile_probes(domain))
-    overall = overall_verdict(probes)
+    overall = overall_verdict(probes)          # sadece Globalping probe'ları (eskisi gibi)
+    mobile = safe_mobile_probes(domain)        # ek bilgi, karara katılmaz
     return {"brand": brand, "domain": domain, "overall": overall, "probes": probes,
+            "mobile": mobile,
             "dns_id": dns_id, "http_id": http_id}
 
 
@@ -535,6 +566,9 @@ def print_report(results):
                 short_net(p["network"]), (p["city"] or "")[:10],
                 p["dns"]["state"], p["http"]["state"],
                 p["http"]["detail"], note))
+        for p in res.get("mobile", []):
+            print("   [mobil, bilgi] %-16s HTTP:%-17s %s  [çıkış: %s]" % (
+                p["network"][:16], p["http"]["state"], p["http"]["detail"], p.get("exit", "")))
     print()
 
 
@@ -588,6 +622,28 @@ def load_state(path):
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError):
         return {}
+
+
+def mobile_alerts(results, prev):
+    """Mobilde geçiş olunca ayrı mesaj. Durum anahtarı 'domain|mobil', genel durumu etkilemez."""
+    now = datetime.now(timezone(timedelta(hours=3))).strftime("%d.%m %H:%M")
+    alerts = []
+    for r in results:
+        cur = mobile_status(r.get("mobile", []))
+        key = r["domain"] + "|mobil"
+        before = prev.get(key)
+        if cur is None or cur == before:
+            continue
+        lines = "\n".join("  %s: %s" % (p["network"], probe_label(p)) for p in r["mobile"])
+        head = "%s  %s" % (r["brand"], r["domain"])
+        if cur == "MOBIL_SUPHE":
+            msg = ("📱 %s\nSOAX mobil ölçümüne göre ulaşılamıyor görünüyor (BİLGİ, henüz doğrulanmadı)\n"
+                   "Genel durum (Globalping): %s\n%s\nKontrol: %s (TR)") % (head, r["overall"], lines, now)
+            alerts.append((key, msg, False))
+        elif before == "MOBIL_SUPHE":
+            msg = "📱 %s\nSOAX mobil ölçümüne göre tekrar açık görünüyor (bilgi)\n%s\nKontrol: %s (TR)" % (head, lines, now)
+            alerts.append((key, msg, False))
+    return alerts
 
 
 def build_alerts(results, prev):
@@ -677,8 +733,15 @@ def main():
     if args.notify:
         prev = load_state(args.state)
         state = {r["domain"]: r["overall"] for r in results}
+        for r in results:      # mobil durum ayrı anahtarda; ölçülemediyse eskisini koru
+            key = r["domain"] + "|mobil"
+            ms = mobile_status(r.get("mobile", []))
+            if ms is not None:
+                state[key] = ms
+            elif key in prev:
+                state[key] = prev[key]
         new_bad = False
-        for domain, msg, is_bad in build_alerts(results, prev):
+        for domain, msg, is_bad in build_alerts(results, prev) + mobile_alerts(results, prev):
             new_bad = new_bad or is_bad
             if not send_telegram(msg):
                 # Gönderilemediyse durumu güncelleme, bir sonraki çalışmada tekrar denensin
