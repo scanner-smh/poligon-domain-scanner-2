@@ -15,6 +15,12 @@ Kullanım:
   python domain_check.py --out sonuc.json
   GLOBALPING_TOKEN=xxxx python domain_check.py     (önerilir, ücretsiz hesap token'ı)
   DOMAIN_LIST="Betsat:betsat1854.com" python domain_check.py   (listeyi dışarıdan ver)
+  python domain_check.py --notify                  (durum değişince Telegram'a yazar)
+
+Bildirim modu (--notify): TELEGRAM_TOKEN ve TELEGRAM_CHAT_IDS (virgülle ayrılmış)
+ortam değişkenleri gerekir. Önceki durum --state dosyasında tutulur. Mesaj sadece
+durum değişince gider (engellendi / tekrar açıldı). Bu modda çıkış kodu 2 sadece
+YENİ bir engel çıkınca döner, engel sürerken 0 döner.
 
 Çıkış kodu:
   0 = hepsi açık
@@ -42,7 +48,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 # ----------------------------------------------------------------------------
 # AYARLAR
@@ -330,6 +336,100 @@ def print_report(results):
     print()
 
 
+# ----------------------------------------------------------------------------
+# TELEGRAM BİLDİRİMİ (sadece durum değişince)
+# ----------------------------------------------------------------------------
+
+BAD = ("ENGELLI", "KAPALI")
+TITLES = {"ENGELLI": "ENGELLENDİ", "KAPALI": "HİÇBİR ISP'DEN AÇILMIYOR"}
+ISP_NAMES = {9121: "Türk Telekom", 47331: "TTNet", 34984: "Superonline", 12735: "TurkNet"}
+HTTP_LABEL = {
+    "BAGLANTI_KESILDI": "bağlantı kesiliyor (SNI/IP engeli)",
+    "ZAMAN_ASIMI": "zaman aşımı",
+    "DNS_HATA": "DNS hatası",
+    "SERTIFIKA_HATASI": "sertifika hatası",
+    "BAGLANTI_REDDEDILDI": "bağlantı reddedildi",
+    "SUNUCU_HATASI": "sunucu hatası",
+    "HATA": "hata",
+}
+
+
+def probe_label(p):
+    if p["dns"]["state"] == "ENGEL":
+        return "DNS engeli"
+    if p["http"]["state"] == "SAYFA_ENGEL":
+        return "engel sayfası"
+    if p["verdict"] == "ACIK":
+        return "açık"
+    return HTTP_LABEL.get(p["http"]["state"], p["http"]["state"].lower())
+
+
+def isp_summary(probes):
+    groups = {}
+    for p in probes:
+        name = ISP_NAMES.get(p["asn"], short_net(p["network"]))
+        labels = groups.setdefault(name, [])
+        lab = probe_label(p)
+        if lab not in labels:
+            labels.append(lab)
+    return "\n".join("  %s: %s" % (n, " / ".join(l)) for n, l in groups.items())
+
+
+def load_state(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def build_alerts(results, prev):
+    """Önceki duruma göre değişen domainler için (domain, mesaj, yeni_engel_mi) listesi."""
+    now = datetime.now(timezone(timedelta(hours=3))).strftime("%d.%m %H:%M")
+    alerts = []
+    for r in results:
+        before = prev.get(r["domain"])
+        cur = r["overall"]
+        if cur == before:
+            continue
+        head = "%s  %s" % (r["brand"], r["domain"])
+        if cur in BAD:
+            msg = "🚫 %s\n%s\n%s\nKontrol: %s (TR)" % (head, TITLES[cur], isp_summary(r["probes"]), now)
+            alerts.append((r["domain"], msg, True))
+        elif before in BAD:
+            msg = "✅ %s\nTekrar erişilebilir (%s)\n%s\nKontrol: %s (TR)" % (
+                head, cur, isp_summary(r["probes"]), now)
+            alerts.append((r["domain"], msg, False))
+    return alerts
+
+
+def send_telegram(text):
+    token = os.environ.get("TELEGRAM_TOKEN", "").strip()
+    chats = [c.strip() for c in os.environ.get("TELEGRAM_CHAT_IDS", "").split(",") if c.strip()]
+    if not token or not chats:
+        print("Telegram ayarı yok (TELEGRAM_TOKEN / TELEGRAM_CHAT_IDS), bildirim atlandı")
+        return False
+    ok = True
+    for chat in chats:
+        body = json.dumps({"chat_id": chat, "text": text,
+                           "disable_web_page_preview": True}).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.telegram.org/bot%s/sendMessage" % token, data=body, method="POST",
+            headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                r.read()
+        except urllib.error.HTTPError as e:
+            # Hata metni URL (yani token) içerebilir, sadece kodu yaz
+            print("Telegram gönderilemedi (chat %s): HTTP %s" % (chat, e.code))
+            ok = False
+        except Exception as e:
+            print("Telegram gönderilemedi (chat %s): %s" % (chat, type(e).__name__))
+            ok = False
+    return ok
+
+
 def main():
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -337,6 +437,10 @@ def main():
         pass
     ap = argparse.ArgumentParser(description="Türkiye erişim kontrolü (Globalping)")
     ap.add_argument("--out", default="domain_status.json", help="JSON çıktı dosyası")
+    ap.add_argument("--notify", action="store_true",
+                    help="Durum değişince Telegram'a bildir (TELEGRAM_TOKEN, TELEGRAM_CHAT_IDS)")
+    ap.add_argument("--state", default="domain_state.json",
+                    help="Önceki durumun tutulduğu dosya (--notify ile kullanılır)")
     args = ap.parse_args()
 
     results = []
@@ -361,6 +465,24 @@ def main():
 
     print_report(results)
     print("JSON:", args.out)
+
+    if args.notify:
+        prev = load_state(args.state)
+        state = {r["domain"]: r["overall"] for r in results}
+        new_bad = False
+        for domain, msg, is_bad in build_alerts(results, prev):
+            new_bad = new_bad or is_bad
+            if not send_telegram(msg):
+                # Gönderilemediyse durumu güncelleme, bir sonraki çalışmada tekrar denensin
+                if domain in prev:
+                    state[domain] = prev[domain]
+                else:
+                    state.pop(domain, None)
+        with open(args.state, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+        # Bildirim modunda iş sadece yeni bir engel çıkınca kırmızı olur
+        # (engel sürerken her 30 dakikada bir e-posta gelmesin)
+        return 2 if new_bad else 0
 
     if any(r["overall"] in ("ENGELLI", "KAPALI") for r in results):
         return 2

@@ -20,26 +20,29 @@ jobs:
         with:
           python-version: '3.11'
 
+      # Onceki durum (ENGELLI/ACIK...) commit edilmez, cache'te tutulur.
+      # Boylece sadece durum degisince Telegram'a mesaj gider.
+      - name: Onceki durumu getir
+        uses: actions/cache/restore@v4
+        with:
+          path: domain_state.json
+          key: domain-state-${{ github.run_id }}
+          restore-keys: |
+            domain-state-
+
       - name: Kontrol
         env:
           GLOBALPING_TOKEN: ${{ secrets.GLOBALPING_TOKEN }}
           DOMAIN_LIST: ${{ vars.DOMAIN_LIST }}
-        run: |
-          set +e
-          python domain_check.py --out domain_status.json
-          code=$?
-          if [ "$code" = "1" ]; then
-            echo "::warning::Kismi erisim sorunu: bazi ISP'lerden ulasilamiyor"
-            exit 0
-          fi
-          exit $code
-        # Cikis 2 (engelli/kapali) ve 3 (API hatasi) isi basarisiz yapar,
-        # GitHub bildirim e-postasi gonderir.
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
+        run: python domain_check.py --notify --state domain_state.json --out domain_status.json
+        # Cikis 2 sadece YENI bir engel cikinca doner (is kirmizi olur),
+        # 3 = Globalping API/limit hatasi.
 
-      - name: Upload result
-        uses: actions/upload-artifact@v4
+      - name: Durumu kaydet
         if: always()
+        uses: actions/cache/save@v4
         with:
-          name: domain-status
-          path: domain_status.json
-          if-no-files-found: ignore
+          path: domain_state.json
+          key: domain-state-${{ github.run_id }}
