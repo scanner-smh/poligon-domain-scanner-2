@@ -2,7 +2,7 @@ name: TR Erisim Kontrolu
 
 on:
   schedule:
-    - cron: '15,45 * * * *'   # 30 dakikada bir (saat basindaki yogunlugu onlemek icin :15 ve :45)
+    - cron: '15,45 4-20 * * *'   # 30 dk'da bir; UTC 21:00-03:59 (TR 00:00-06:59) arasi calismaz
   workflow_dispatch:          # elle de calistirilabilir
 
 permissions:
