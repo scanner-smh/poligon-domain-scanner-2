@@ -414,7 +414,7 @@ def mobile_exit_check(isp, asn, label=""):
     """Çıkış gerçekten istenen operatörde mi? (IP loglanmaz.) -> (ok, özet)"""
     if isp in _EXIT_CACHE:
         return _EXIT_CACHE[isp]
-    res = (True, "doğrulanamadı")
+    res = (None, "doğrulanamadı")
     try:
         with _proxy_opener(isp).open("https://checker.soax.com/api/ipinfo",
                                      timeout=MOBILE_TIMEOUT) as r:
@@ -431,8 +431,8 @@ def mobile_exit_check(isp, asn, label=""):
         info = ", ".join(parts) or "doğrulanamadı"
         name_ok = bool(label) and label.lower() in info.lower()   # ör. "Turkcell" ISP adında geçiyor
         res = (seen_asn is None or seen_asn == asn or name_ok, info)
-    except Exception as e:
-        res = (True, "doğrulama hatası: %s" % type(e).__name__)
+    except Exception as e:      # proxy çalışmıyor (kredi bitti, şifre yanlış, askıda...)
+        res = (None, "proxy yanıt vermedi: %s" % type(e).__name__)
     _EXIT_CACHE[isp] = res
     return res
 
@@ -471,7 +471,9 @@ def mobile_probes(domain):
                            "verdict": "OLCULEMEDI", "exit": ""})
             continue
         ok, exit_info = mobile_exit_check(isp, asn, label)
-        if not ok:   # proxy yanlış operatörden çıkıyor: ölçüm anlamsız
+        if ok is None:   # proxy hiç çalışmıyor: ölçmeye çalışma (yanlış alarm çıkmasın)
+            http = {"state": "PROXY_HATA", "code": None, "detail": exit_info}
+        elif not ok:     # proxy yanlış operatörden çıkıyor: ölçüm anlamsız
             http = {"state": "PROXY_HATA", "code": None, "detail": "yanlış çıkış (%s)" % exit_info}
         else:
             http = mobile_fetch(domain, isp)
