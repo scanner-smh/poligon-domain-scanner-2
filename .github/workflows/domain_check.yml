@@ -1,0 +1,45 @@
+name: TR Erisim Kontrolu
+
+on:
+  schedule:
+    - cron: '15,45 * * * *'   # 30 dakikada bir (saat basindaki yogunlugu onlemek icin :15 ve :45)
+  workflow_dispatch:          # elle de calistirilabilir
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Kontrol
+        env:
+          GLOBALPING_TOKEN: ${{ secrets.GLOBALPING_TOKEN }}
+          DOMAIN_LIST: ${{ vars.DOMAIN_LIST }}
+        run: |
+          set +e
+          python domain_check.py --out domain_status.json
+          code=$?
+          if [ "$code" = "1" ]; then
+            echo "::warning::Kismi erisim sorunu: bazi ISP'lerden ulasilamiyor"
+            exit 0
+          fi
+          exit $code
+        # Cikis 2 (engelli/kapali) ve 3 (API hatasi) isi basarisiz yapar,
+        # GitHub bildirim e-postasi gonderir.
+
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: domain-status
+          path: domain_status.json
+          if-no-files-found: ignore
