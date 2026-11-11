@@ -390,7 +390,15 @@ def _mobile_request(opener, url):
     item = {"result": {"status": "finished", "statusCode": code,
                        "rawBody": body.decode("utf-8", "ignore"),
                        "headers": {k.lower(): v for k, v in dict(hdrs).items()}}}
-    return analyze_http(item)
+    h = analyze_http(item)
+    if h["state"] == "OK" and code in (401, 403, 429):
+        # Mobil IP'ye site/WAF "yasak" dedi: sayfa açıldı demek değil, engel de demek değil.
+        low = {k.lower(): v for k, v in dict(hdrs).items()}
+        who = low.get("server") or ("cloudflare" if "cf-ray" in low else "?")
+        snip = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", body.decode("utf-8", "ignore"))).strip()[:50]
+        return {"state": "KORUMA_RED", "code": code,
+                "detail": "HTTP %s (server=%s) %s" % (code, str(who)[:20], snip)}
+    return h
 
 
 def mobile_fetch(domain, isp):
@@ -428,7 +436,10 @@ def mobile_exit_check(isp, asn, label=""):
                     if kl in ("asn", "as"):
                         m = re.search(r"\d+", str(v))
                         seen_asn = int(m.group()) if m else None
-        info = ", ".join(parts) or "doğrulanamadı"
+        info = ", ".join(parts)
+        if not info:
+            keys = sorted(str(k) for k in data)[:8] if isinstance(data, dict) else []
+            info = "doğrulanamadı (alanlar: %s)" % ",".join(keys)
         name_ok = bool(label) and label.lower() in info.lower()   # ör. "Turkcell" ISP adında geçiyor
         res = (seen_asn is None or seen_asn == asn or name_ok, info)
     except Exception as e:      # proxy çalışmıyor (kredi bitti, şifre yanlış, askıda...)
@@ -479,7 +490,8 @@ def mobile_probes(domain):
             http = mobile_fetch(domain, isp)
         dns = {"state": "OK", "detail": "proxy çözdü", "resolver": None, "ips": [],
                "public_dns": True}
-        verdict = "OLCULEMEDI" if http["state"] == "PROXY_HATA" else probe_verdict(dns, http)
+        verdict = ("OLCULEMEDI" if http["state"] in ("PROXY_HATA", "KORUMA_RED")
+                   else probe_verdict(dns, http))
         probes.append({"asn": asn, "network": "%s (mobil)" % label, "city": "mobil",
                        "dns": dns, "http": http, "verdict": verdict, "exit": exit_info})
     return probes
@@ -592,6 +604,7 @@ HTTP_LABEL = {
     "BAGLANTI_REDDEDILDI": "bağlantı reddedildi",
     "SUNUCU_HATASI": "sunucu hatası",
     "PROXY_HATA": "ölçülemedi (proxy)",
+    "KORUMA_RED": "ölçülemedi (site mobil IP'yi reddetti)",
     "HATA": "hata",
 }
 
