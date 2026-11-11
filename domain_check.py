@@ -289,6 +289,10 @@ def probe_verdict(dns, http):
         return "ENGELLI"
     if http["state"] == "OK":
         return "ACIK"
+    # Probe ISP'nin değil public DNS'in (8.8.8.8 vb.) çözücüsünü kullanıyorsa DNS hatası
+    # ISP'yi anlatmaz (yeni domain, resolver önbelleği...). Ölçülemedi say, KISMI yapma.
+    if dns.get("public_dns") and http["state"] == "DNS_HATA":
+        return "OLCULEMEDI"
     return "ULASILAMIYOR"
 
 
@@ -336,6 +340,7 @@ ISP_GROUP = {47331: 9121}
 
 
 def overall_verdict(probes):
+    probes = [p for p in probes if p["verdict"] != "OLCULEMEDI"]
     if not probes:
         return "OLCULEMEDI"
     verdicts = [p["verdict"] for p in probes]
