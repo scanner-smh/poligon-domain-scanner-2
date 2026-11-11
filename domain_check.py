@@ -452,7 +452,8 @@ def mobile_exit_check(isp, asn, label=""):
             keys = sorted(str(k) for k in data)[:8] if isinstance(data, dict) else []
             info = "doğrulanamadı (alanlar: %s)" % ",".join(keys)
         name_ok = bool(label) and label.lower() in info.lower()   # ör. "Turkcell" ISP adında geçiyor
-        res = (seen_asn is None or seen_asn == asn or name_ok, info)
+        # asn=0: keşif modu. Doğrulama yapma, sadece gerçek ASN/operatör bilgisini loga yaz.
+        res = (seen_asn is None or seen_asn == asn or name_ok or asn == 0, info)
     except Exception as e:      # proxy çalışmıyor (kredi bitti, şifre yanlış, askıda...)
         res = (None, "proxy yanıt vermedi: %s" % type(e).__name__)
     _EXIT_CACHE[isp] = res
@@ -728,9 +729,11 @@ MOBILE_CONFIRM = 2   # sık ölçümde tek seferlik mobil aksaklık alarm üretm
 def run_mobile_only(args):
     """Globalping'e dokunmadan sadece mobil (SOAX) ölçüm. Kendi durum dosyasını kullanır,
     sadece 'bilgi' mesajı gönderir; ana kontrolün durumunu ve limitini etkilemez."""
+    global _MOBILE_BUDGET_SEC
     if not mobile_targets():
         print("Mobil ayar yok (MOBILE_PROXY_PASSWORD / MOBILE_ISPS), atlandı.")
         return 0
+    _MOBILE_BUDGET_SEC = 360     # bu iş sadece mobil ölçüyor, daha çok operatöre yetsin
     results = []
     for brand, domain in load_domains():
         results.append({"brand": brand, "domain": domain, "mobile": safe_mobile_probes(domain)})
