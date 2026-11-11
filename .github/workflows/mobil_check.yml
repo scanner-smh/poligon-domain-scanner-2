@@ -4,7 +4,7 @@ name: TR Mobil Kontrol (SOAX)
 # ve durumunu etkilemez. Mesajlar "SOAX'a gore ... bilgi" olarak gelir.
 on:
   schedule:
-    - cron: '7,22,37,52 * * * *'   # 15 dakikada bir (ana kontrolle ayni dakikalara denk gelmesin)
+    - cron: '7,22,37,52 4-20 * * *'   # 15 dk'da bir; UTC 21:00-03:59 (TR 00:00-06:59) arasi calismaz
   workflow_dispatch:
 
 permissions:
