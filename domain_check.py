@@ -347,8 +347,17 @@ def _proxy_opener(isp):
     pw = os.environ.get("MOBILE_PROXY_PASSWORD", "").strip()
     purl = "http://%s:%s@%s" % (urllib.parse.quote(user, safe="-_"),
                                 urllib.parse.quote(pw, safe=""), MOBILE_HOST)
-    return urllib.request.build_opener(
+    op = urllib.request.build_opener(
         urllib.request.ProxyHandler({"https": purl, "http": purl}), _NoRedirect())
+    # Cloudflare 1010 = "tarayıcı imzası yasak": varsayılan Python-urllib UA'sını reddediyor.
+    # Gerçek bir mobil tarayıcı gibi başlık gönder (kendi sitelerimizi ölçüyoruz).
+    op.addheaders = [
+        ("User-Agent", "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 "
+                       "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"),
+        ("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
+        ("Accept-Language", "tr-TR,tr;q=0.9,en;q=0.7"),
+    ]
+    return op
 
 
 def classify_exc(exc):
@@ -428,6 +437,8 @@ def mobile_exit_check(isp, asn, label=""):
                                      timeout=MOBILE_TIMEOUT) as r:
             data = json.loads(r.read(4096).decode("utf-8", "ignore"))
         parts, seen_asn = [], None
+        if isinstance(data, dict) and isinstance(data.get("data"), dict):
+            data = data["data"]          # SOAX: {"data": {...}, "reason": "", "status": true}
         if isinstance(data, dict):
             for k, v in data.items():
                 kl = str(k).lower()
