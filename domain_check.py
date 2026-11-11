@@ -87,7 +87,7 @@ def load_domains():
 ISP_PROBES = [
     {"country": "TR", "asn": 9121,  "tags": ["eyeball-network"], "limit": 2},  # Türk Telekom
     {"country": "TR", "asn": 47331, "tags": ["eyeball-network"], "limit": 1},  # TTNet
-    {"country": "TR", "asn": 34984, "tags": ["eyeball-network"], "limit": 2},  # Superonline (Turkcell)
+    {"country": "TR", "asn": 34984, "tags": ["eyeball-network"], "limit": 3},  # Superonline (Turkcell)
     {"country": "TR", "asn": 12735, "tags": ["eyeball-network"], "limit": 2},  # TurkNet
 ]
 
