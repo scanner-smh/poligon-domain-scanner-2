@@ -350,6 +350,15 @@ def overall_verdict(probes):
     failing = {ISP_GROUP.get(p["asn"], p["asn"]) for p in probes if p["verdict"] != "ACIK"}
     if len(failing) >= 2:
         return "ENGELLI"
+    # Tek ISP grubunda en az 2 probe aynı anda kopuyorsa (sunucu 5xx hariç): ŞÜPHELİ engel.
+    # Tek probe hatası geçici olabilir, iki ayrı hattın birlikte kopması genelde engeldir.
+    per_group = {}
+    for p in probes:
+        if p["verdict"] != "ACIK" and p["http"]["state"] != "SUNUCU_HATASI":
+            g = ISP_GROUP.get(p["asn"], p["asn"])
+            per_group[g] = per_group.get(g, 0) + 1
+    if any(n >= 2 for n in per_group.values()):
+        return "SUPHELI"
     return "KISMI"
 
 
@@ -372,7 +381,9 @@ def print_report(results):
 # ----------------------------------------------------------------------------
 
 BAD = ("ENGELLI", "KAPALI")
-TITLES = {"ENGELLI": "ENGELLENDİ", "KAPALI": "HİÇBİR ISP'DEN AÇILMIYOR"}
+ALERT = BAD + ("SUPHELI",)
+TITLES = {"ENGELLI": "ENGELLENDİ", "KAPALI": "HİÇBİR ISP'DEN AÇILMIYOR",
+          "SUPHELI": "ENGEL ŞÜPHESİ (tek ISP, diğerleri açık)"}
 ISP_NAMES = {9121: "Türk Telekom", 47331: "TTNet", 34984: "Superonline", 12735: "TurkNet"}
 HTTP_LABEL = {
     "BAGLANTI_KESILDI": "bağlantı kesiliyor (SNI/IP engeli)",
@@ -425,10 +436,12 @@ def build_alerts(results, prev):
         if cur == before:
             continue
         head = "%s  %s" % (r["brand"], r["domain"])
-        if cur in BAD:
-            msg = "🚫 %s\n%s\n%s\nKontrol: %s (TR)" % (head, TITLES[cur], isp_summary(r["probes"]), now)
-            alerts.append((r["domain"], msg, True))
-        elif before in BAD:
+        if cur in ALERT:
+            icon = "⚠️" if cur == "SUPHELI" else "🚫"
+            msg = "%s %s\n%s\n%s\nKontrol: %s (TR)" % (icon, head, TITLES[cur], isp_summary(r["probes"]), now)
+            # Şüphede Telegram yeter, Actions çalışması kırmızıya dönmesin
+            alerts.append((r["domain"], msg, cur in BAD))
+        elif before in ALERT:
             msg = "✅ %s\nTekrar erişilebilir (%s)\n%s\nKontrol: %s (TR)" % (
                 head, cur, isp_summary(r["probes"]), now)
             alerts.append((r["domain"], msg, False))
@@ -517,7 +530,7 @@ def main():
 
     if any(r["overall"] in ("ENGELLI", "KAPALI") for r in results):
         return 2
-    if any(r["overall"] in ("KISMI", "OLCULEMEDI") for r in results):
+    if any(r["overall"] in ("KISMI", "SUPHELI", "OLCULEMEDI") for r in results):
         return 1
     return 0
 
