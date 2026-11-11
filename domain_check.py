@@ -664,7 +664,9 @@ def mobile_alerts(results, prev):
         head = "%s  %s" % (r["brand"], r["domain"])
         if cur == "MOBIL_SUPHE":
             msg = ("📱 %s\nSOAX mobil ölçümüne göre ulaşılamıyor görünüyor (BİLGİ, henüz doğrulanmadı)\n"
-                   "Genel durum (Globalping): %s\n%s\nKontrol: %s (TR)") % (head, r["overall"], lines, now)
+                   "%s%s\nKontrol: %s (TR)") % (
+                       head, ("Genel durum (Globalping): %s\n" % r["overall"]) if r.get("overall") else "",
+                       lines, now)
             alerts.append((key, msg, False))
         elif before == "MOBIL_SUPHE":
             msg = "📱 %s\nSOAX mobil ölçümüne göre tekrar açık görünüyor (bilgi)\n%s\nKontrol: %s (TR)" % (head, lines, now)
@@ -720,6 +722,60 @@ def send_telegram(text):
     return ok
 
 
+MOBILE_CONFIRM = 2   # sık ölçümde tek seferlik mobil aksaklık alarm üretmesin: üst üste 2 kez şüphe
+
+
+def run_mobile_only(args):
+    """Globalping'e dokunmadan sadece mobil (SOAX) ölçüm. Kendi durum dosyasını kullanır,
+    sadece 'bilgi' mesajı gönderir; ana kontrolün durumunu ve limitini etkilemez."""
+    if not mobile_targets():
+        print("Mobil ayar yok (MOBILE_PROXY_PASSWORD / MOBILE_ISPS), atlandı.")
+        return 0
+    results = []
+    for brand, domain in load_domains():
+        results.append({"brand": brand, "domain": domain, "mobile": safe_mobile_probes(domain)})
+    for r in results:
+        print("%s  %s" % (r["brand"], r["domain"]))
+        for p in r["mobile"]:
+            print("   [mobil, bilgi] %-16s HTTP:%-17s %s  [çıkış: %s]" % (
+                p["network"][:16], p["http"]["state"], p["http"]["detail"], p.get("exit", "")))
+        print()
+    out = {"checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+           "mobile": {r["domain"]: r["mobile"] for r in results}}
+    with open(args.out, "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, indent=2)
+    if not args.notify:
+        return 0
+    prev = load_state(args.state)
+    state = dict(prev)
+    eff = []
+    for r in results:
+        key, nkey = r["domain"] + "|mobil", r["domain"] + "|mobil_n"
+        ms = mobile_status(r["mobile"])
+        if ms is None:                       # ölçülemedi: eski durum ve sayaç aynen kalsın
+            eff.append(dict(r, mobile=[]))
+            continue
+        if ms == "MOBIL_SUPHE":
+            n = int(prev.get(nkey, 0) or 0) + 1
+            state[nkey] = n
+            if n < MOBILE_CONFIRM:           # henüz teyit edilmedi: durum değişmesin
+                eff.append(dict(r, mobile=[]))
+                continue
+        else:
+            state.pop(nkey, None)
+        state[key] = ms
+        eff.append(r)
+    for key, msg, _bad in mobile_alerts(eff, prev):
+        if not send_telegram(msg):           # gönderilemediyse durum eski kalsın, tekrar denensin
+            if key in prev:
+                state[key] = prev[key]
+            else:
+                state.pop(key, None)
+    with open(args.state, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
+    return 0
+
+
 def main():
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -731,7 +787,11 @@ def main():
                     help="Durum değişince Telegram'a bildir (TELEGRAM_TOKEN, TELEGRAM_CHAT_IDS)")
     ap.add_argument("--state", default="domain_state.json",
                     help="Önceki durumun tutulduğu dosya (--notify ile kullanılır)")
+    ap.add_argument("--sadece-mobil", action="store_true",
+                    help="Sadece mobil (SOAX) ölçüm; Globalping kullanmaz, kendi --state dosyasıyla çalışır")
     args = ap.parse_args()
+    if args.sadece_mobil:
+        return run_mobile_only(args)
 
     results = []
     locations = ISP_PROBES
