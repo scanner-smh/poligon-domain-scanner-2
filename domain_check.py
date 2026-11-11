@@ -125,12 +125,37 @@ class ApiError(Exception):
     pass
 
 
+_TOKEN_STATE = {"disabled": False}
+
+
+def warn(msg):
+    # GitHub Actions'ta sarı uyarı olarak görünür
+    if os.environ.get("GITHUB_ACTIONS"):
+        print("::warning::" + msg)
+    else:
+        print("UYARI: " + msg)
+
+
+def get_token():
+    """Secret'a yanlışlıkla eklenen tırnak, boşluk ve 'Bearer ' önekini temizler."""
+    if _TOKEN_STATE["disabled"]:
+        return ""
+    tok = os.environ.get("GLOBALPING_TOKEN", "").strip().strip("\"'").strip()
+    if tok.lower().startswith("bearer "):
+        tok = tok[7:].strip()
+    if tok and any(c.isspace() for c in tok):
+        warn("GLOBALPING_TOKEN içinde boşluk/satır sonu var, token yok sayıldı (tokensiz devam).")
+        _TOKEN_STATE["disabled"] = True
+        return ""
+    return tok
+
+
 def api(method, path, body=None):
     data = json.dumps(body).encode("utf-8") if body is not None else None
     req = urllib.request.Request(API + path, data=data, method=method)
     req.add_header("Content-Type", "application/json")
     req.add_header("User-Agent", "tr-domain-check/1.0")
-    token = os.environ.get("GLOBALPING_TOKEN")
+    token = get_token()
     if token:
         req.add_header("Authorization", "Bearer " + token)
     try:
@@ -142,6 +167,12 @@ def api(method, path, body=None):
             payload = json.loads(raw)
         except ValueError:
             payload = {"raw": raw}
+        if e.code == 401 and token:
+            # Token geçersiz: tokensiz devam et (ücretsiz kota IP başına, GitHub'da ortak olabilir)
+            warn("GLOBALPING_TOKEN geçersiz (401), tokensiz devam ediliyor. "
+                 "dash.globalping.io/tokens'tan yeni token oluşturup secret'ı güncelle.")
+            _TOKEN_STATE["disabled"] = True
+            return api(method, path, body)
         return e.code, payload
 
 
