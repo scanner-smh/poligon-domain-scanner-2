@@ -43,6 +43,7 @@ import argparse
 import ipaddress
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -304,6 +305,153 @@ def short_net(name):
 
 
 # ----------------------------------------------------------------------------
+# MOBİL ÖLÇÜM (opsiyonel): mobil operatör proxy'si (SOAX) üzerinden Turkcell/Vodafone
+# Ayar yoksa tamamen atlanır. Gerekenler:
+#   MOBILE_PROXY_PASSWORD  proxy paketinin şifresi (GitHub secret)
+#   MOBILE_ISPS            "Turkcell:16135:isp_adi,Vodafone:15897:isp_adi"
+#                          (etiket:ASN:SOAX'ın ISP adı, boşluk yerine alt çizgi)
+#   MOBILE_PROXY_HOST      varsayılan proxy.soax.com:1337
+# DNS'i proxy tarafı çözdüğü için DNS engeli ölçülemez; SNI/IP kesilmesi ve zaman
+# aşımı görülür. Proxy kaynaklı hatalar (kimlik, node yok) OLCULEMEDI sayılır.
+# ----------------------------------------------------------------------------
+
+MOBILE_HOST = os.environ.get("MOBILE_PROXY_HOST", "proxy.soax.com:1337")
+MOBILE_TRIES = 3        # mobil node'lar kararsız olabilir: açılırsa ilk denemede biter
+MOBILE_TIMEOUT = 15     # sn
+MOBILE_BODY_MAX = 8192  # byte, trafik (GB) tüketimini küçük tutar
+_EXIT_CACHE = {}
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+def mobile_targets():
+    pw = os.environ.get("MOBILE_PROXY_PASSWORD", "").strip()
+    raw = os.environ.get("MOBILE_ISPS", "").strip()
+    if not pw or not raw:
+        return []
+    out = []
+    for part in raw.split(","):
+        bits = [b.strip() for b in part.split(":")]
+        if len(bits) != 3 or not bits[1].isdigit() or not bits[2]:
+            warn("MOBILE_ISPS biçimi hatalı, atlandı: %r (etiket:ASN:isp_adi bekleniyor)" % part[:40])
+            continue
+        out.append((bits[0], int(bits[1]), bits[2]))
+    return out
+
+
+def _proxy_opener(isp):
+    user = "network-mob-country-tr-isp-%s" % isp
+    pw = os.environ.get("MOBILE_PROXY_PASSWORD", "").strip()
+    purl = "http://%s:%s@%s" % (urllib.parse.quote(user, safe="-_"),
+                                urllib.parse.quote(pw, safe=""), MOBILE_HOST)
+    return urllib.request.build_opener(
+        urllib.request.ProxyHandler({"https": purl, "http": purl}), _NoRedirect())
+
+
+def classify_exc(exc):
+    """Python istisnasını (state, detail) olarak sınıfla. PROXY_HATA = ölçüm yapılamadı."""
+    msg = ("%s %s" % (type(exc).__name__, exc)).lower()
+    short = msg.strip().replace("\n", " ")[:100]
+    if "407" in msg or "proxy authentication" in msg or "tunnel connection failed" in msg:
+        return "PROXY_HATA", short
+    if "name or service not known" in msg or "getaddrinfo" in msg or "nodename" in msg:
+        return "DNS_HATA", short
+    if ("reset" in msg or "eof occurred" in msg or "remote end closed" in msg
+            or "connection aborted" in msg or "broken pipe" in msg):
+        return "BAGLANTI_KESILDI", short
+    if "timed out" in msg or "timeout" in msg:
+        return "ZAMAN_ASIMI", short
+    if "refused" in msg:
+        return "BAGLANTI_REDDEDILDI", short
+    if "certificate" in msg or "ssl" in msg:
+        return "SERTIFIKA_HATASI", short
+    return "HATA", short
+
+
+def _mobile_request(opener, url):
+    """(http_dict) döndürür. Yanıt gelirse analyze_http ile aynı kurallarla değerlendirilir."""
+    try:
+        with opener.open(url, timeout=MOBILE_TIMEOUT) as r:
+            code, hdrs, body = r.status, r.headers, r.read(MOBILE_BODY_MAX)
+    except urllib.error.HTTPError as e:      # 3xx (yönlendirme izlenmez) ve 4xx/5xx
+        try:
+            body = e.read(MOBILE_BODY_MAX)
+        except Exception:
+            body = b""
+        code, hdrs = e.code, e.headers
+        if code in (407, 502, 503) and "proxy" in str(hdrs).lower():
+            return {"state": "PROXY_HATA", "code": code, "detail": "proxy hatası HTTP %s" % code}
+    except Exception as e:                   # bağlantı/TLS/zaman aşımı
+        state, detail = classify_exc(e)
+        return {"state": state, "code": None, "detail": detail}
+    item = {"result": {"status": "finished", "statusCode": code,
+                       "rawBody": body.decode("utf-8", "ignore"),
+                       "headers": {k.lower(): v for k, v in dict(hdrs).items()}}}
+    return analyze_http(item)
+
+
+def mobile_fetch(domain, isp):
+    """Birkaç deneme: biri açılırsa ACIK. Hepsi proxy hatasıysa PROXY_HATA."""
+    opener = _proxy_opener(isp)
+    results = []
+    for _ in range(MOBILE_TRIES):
+        h = _mobile_request(opener, "https://%s/" % domain)
+        if h["state"] in ("OK", "SAYFA_ENGEL"):
+            return h
+        results.append(h)
+    real = [h for h in results if h["state"] != "PROXY_HATA"]
+    if not real:
+        return results[-1]
+    states = [h["state"] for h in real]
+    best = max(set(states), key=states.count)
+    return next(h for h in real if h["state"] == best)
+
+
+def mobile_exit_check(isp, asn):
+    """Çıkış gerçekten istenen operatörde mi? (IP loglanmaz.) -> (ok, özet)"""
+    if isp in _EXIT_CACHE:
+        return _EXIT_CACHE[isp]
+    res = (True, "doğrulanamadı")
+    try:
+        with _proxy_opener(isp).open("https://checker.soax.com/api/ipinfo",
+                                     timeout=MOBILE_TIMEOUT) as r:
+            data = json.loads(r.read(4096).decode("utf-8", "ignore"))
+        parts, seen_asn = [], None
+        if isinstance(data, dict):
+            for k, v in data.items():
+                kl = str(k).lower()
+                if isinstance(v, (str, int)) and kl in ("asn", "as", "isp", "carrier", "org", "as_name"):
+                    parts.append("%s=%s" % (kl, str(v)[:40]))
+                    if kl in ("asn", "as"):
+                        m = re.search(r"\d+", str(v))
+                        seen_asn = int(m.group()) if m else None
+        res = (seen_asn is None or seen_asn == asn, ", ".join(parts) or "doğrulanamadı")
+    except Exception as e:
+        res = (True, "doğrulama hatası: %s" % type(e).__name__)
+    _EXIT_CACHE[isp] = res
+    return res
+
+
+def mobile_probes(domain):
+    probes = []
+    for label, asn, isp in mobile_targets():
+        ok, exit_info = mobile_exit_check(isp, asn)
+        if not ok:   # proxy yanlış operatörden çıkıyor: ölçüm anlamsız
+            http = {"state": "PROXY_HATA", "code": None, "detail": "yanlış çıkış (%s)" % exit_info}
+        else:
+            http = mobile_fetch(domain, isp)
+        dns = {"state": "OK", "detail": "proxy çözdü", "resolver": None, "ips": [],
+               "public_dns": True}
+        verdict = "OLCULEMEDI" if http["state"] == "PROXY_HATA" else probe_verdict(dns, http)
+        probes.append({"asn": asn, "network": "%s (mobil)" % label, "city": "mobil",
+                       "dns": dns, "http": http, "verdict": verdict, "exit": exit_info})
+    return probes
+
+
+# ----------------------------------------------------------------------------
 # ANA AKIŞ
 # ----------------------------------------------------------------------------
 
@@ -330,13 +478,15 @@ def check_domain(brand, domain, locations):
             "http": http,
             "verdict": probe_verdict(dns, http),
         })
+    probes.extend(mobile_probes(domain))
     overall = overall_verdict(probes)
     return {"brand": brand, "domain": domain, "overall": overall, "probes": probes,
             "dns_id": dns_id, "http_id": http_id}
 
 
 # TTNet ve Türk Telekom aynı ISP grubu sayılır
-ISP_GROUP = {47331: 9121}
+# Turkcell mobil ile Superonline aynı operatör (Turkcell): tek grup sayılır
+ISP_GROUP = {47331: 9121, 16135: 34984}
 
 
 def overall_verdict(probes):
@@ -377,6 +527,8 @@ def print_report(results):
             note = ""
             if p["dns"]["public_dns"]:
                 note = "  (probe public DNS kullanıyor, DNS engeli ölçülemedi)"
+            if p.get("exit"):
+                note += "  [mobil çıkış: %s]" % p["exit"]
             print("   %-22s %-10s DNS:%-9s HTTP:%-17s %s%s" % (
                 short_net(p["network"]), (p["city"] or "")[:10],
                 p["dns"]["state"], p["http"]["state"],
@@ -392,7 +544,8 @@ BAD = ("ENGELLI", "KAPALI")
 ALERT = BAD + ("SUPHELI",)
 TITLES = {"ENGELLI": "ENGELLENDİ", "KAPALI": "HİÇBİR ISP'DEN AÇILMIYOR",
           "SUPHELI": "ENGEL ŞÜPHESİ (tek ISP, diğerleri açık)"}
-ISP_NAMES = {9121: "Türk Telekom", 47331: "TTNet", 34984: "Superonline", 12735: "TurkNet"}
+ISP_NAMES = {9121: "Türk Telekom", 47331: "TTNet", 34984: "Superonline", 12735: "TurkNet",
+             16135: "Turkcell (mobil)", 15897: "Vodafone (mobil)"}
 HTTP_LABEL = {
     "BAGLANTI_KESILDI": "bağlantı kesiliyor (SNI/IP engeli)",
     "ZAMAN_ASIMI": "zaman aşımı",
@@ -400,6 +553,7 @@ HTTP_LABEL = {
     "SERTIFIKA_HATASI": "sertifika hatası",
     "BAGLANTI_REDDEDILDI": "bağlantı reddedildi",
     "SUNUCU_HATASI": "sunucu hatası",
+    "PROXY_HATA": "ölçülemedi (proxy)",
     "HATA": "hata",
 }
 

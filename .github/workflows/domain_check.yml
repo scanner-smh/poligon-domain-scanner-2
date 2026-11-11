@@ -36,6 +36,9 @@ jobs:
           DOMAIN_LIST: ${{ vars.DOMAIN_LIST }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
+          # Opsiyonel mobil olcum (SOAX): ikisi de tanimli degilse atlanir
+          MOBILE_PROXY_PASSWORD: ${{ secrets.MOBILE_PROXY_PASSWORD }}
+          MOBILE_ISPS: ${{ vars.MOBILE_ISPS }}
         run: python domain_check.py --notify --state domain_state.json --out domain_status.json
         # Cikis 2 sadece YENI bir engel cikinca doner (is kirmizi olur),
         # 3 = Globalping API/limit hatasi.
