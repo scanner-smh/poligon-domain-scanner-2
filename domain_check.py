@@ -352,7 +352,10 @@ def overall_verdict(probes):
         return "KAPALI"
     # Net engel izi yok ama birden fazla ISP grubundan ulaşılamıyor:
     # muhtemel SNI/IP engeli (DNS temiz, bağlantı kesiliyor)
-    failing = {ISP_GROUP.get(p["asn"], p["asn"]) for p in probes if p["verdict"] != "ACIK"}
+    # DNS_HATA (ENODATA vb.) tek başına engel kanıtı değil: yeni domain yayılırken ISP
+    # çözücülerinde geçici görülür. Gerçek DNS engeli sahte IP döner (ENGEL), burada sayılmaz.
+    failing = {ISP_GROUP.get(p["asn"], p["asn"]) for p in probes
+               if p["verdict"] != "ACIK" and p["http"]["state"] != "DNS_HATA"}
     if len(failing) >= 2:
         return "ENGELLI"
     # Tek ISP grubunda en az 2 probe aynı anda kopuyorsa (sunucu 5xx hariç): ŞÜPHELİ engel.
