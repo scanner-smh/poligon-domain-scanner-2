@@ -343,7 +343,7 @@ def mobile_targets():
 
 
 def _proxy_opener(isp):
-    user = "network-mob-country-tr-isp-%s" % isp
+    user = "country-tr-isp-%s-network-mob" % isp
     pw = os.environ.get("MOBILE_PROXY_PASSWORD", "").strip()
     purl = "http://%s:%s@%s" % (urllib.parse.quote(user, safe="-_"),
                                 urllib.parse.quote(pw, safe=""), MOBILE_HOST)
@@ -410,7 +410,7 @@ def mobile_fetch(domain, isp):
     return next(h for h in real if h["state"] == best)
 
 
-def mobile_exit_check(isp, asn):
+def mobile_exit_check(isp, asn, label=""):
     """Çıkış gerçekten istenen operatörde mi? (IP loglanmaz.) -> (ok, özet)"""
     if isp in _EXIT_CACHE:
         return _EXIT_CACHE[isp]
@@ -428,7 +428,9 @@ def mobile_exit_check(isp, asn):
                     if kl in ("asn", "as"):
                         m = re.search(r"\d+", str(v))
                         seen_asn = int(m.group()) if m else None
-        res = (seen_asn is None or seen_asn == asn, ", ".join(parts) or "doğrulanamadı")
+        info = ", ".join(parts) or "doğrulanamadı"
+        name_ok = bool(label) and label.lower() in info.lower()   # ör. "Turkcell" ISP adında geçiyor
+        res = (seen_asn is None or seen_asn == asn or name_ok, info)
     except Exception as e:
         res = (True, "doğrulama hatası: %s" % type(e).__name__)
     _EXIT_CACHE[isp] = res
@@ -438,7 +440,7 @@ def mobile_exit_check(isp, asn):
 def mobile_probes(domain):
     probes = []
     for label, asn, isp in mobile_targets():
-        ok, exit_info = mobile_exit_check(isp, asn)
+        ok, exit_info = mobile_exit_check(isp, asn, label)
         if not ok:   # proxy yanlış operatörden çıkıyor: ölçüm anlamsız
             http = {"state": "PROXY_HATA", "code": None, "detail": "yanlış çıkış (%s)" % exit_info}
         else:
