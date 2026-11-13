@@ -14,7 +14,7 @@ Kullanım:
   python domain_check.py
   python domain_check.py --out sonuc.json
   GLOBALPING_TOKEN=xxxx python domain_check.py     (önerilir, ücretsiz hesap token'ı)
-  DOMAIN_LIST="Betsat:betsat1855.com" python domain_check.py   (listeyi dışarıdan ver)
+  DOMAIN_LIST="Betsat:betsat1856.com" python domain_check.py   (listeyi dışarıdan ver)
   python domain_check.py --notify                  (durum değişince Telegram'a yazar)
 
 Bildirim modu (--notify): TELEGRAM_TOKEN ve TELEGRAM_CHAT_IDS (virgülle ayrılmış)
@@ -58,13 +58,13 @@ from datetime import datetime, timedelta, timezone
 # (marka, domain) - yeni domain gelince burayı güncelle
 DOMAINS = [
     ("Superbetin", "superbetin2915.com"),
-    ("Betsat",     "betsat1855.com"),
+    ("Betsat",     "betsat1856.com"),
     ("Turkbet",    "786turkbet.com"),
 ]
 
 # İstersen listeyi dosyaya yazmak yerine DOMAIN_LIST ortam değişkeniyle ver
 # (GitHub: Settings > Secrets and variables > Actions > Variables > DOMAIN_LIST).
-# Format: "Superbetin:superbetin2915.com,Betsat:betsat1855.com,Turkbet:786turkbet.com"
+# Format: "Superbetin:superbetin2915.com,Betsat:betsat1856.com,Turkbet:786turkbet.com"
 # Doluysa yukarıdaki DOMAINS listesi yerine bu kullanılır. Domain rotasyonunda
 # sadece değişkeni güncellemen yeter, commit gerekmez.
 
